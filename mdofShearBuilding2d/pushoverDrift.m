@@ -65,20 +65,12 @@ title('P-Delta for Roof')
 
 %% Deflected shape - Pushover
 figure
-% Peak Shear
-subplot(1,2,1)
+hold on
 plot([0 results.totalDrift(peakShearIndex,:)],0:nStories,'*-')
-grid on
-grid minor
-ylabel('Story')
-xlabel('Total drift')
-title('Peak Shear')
-
-% 80% of Peak Shear
-subplot(1,2,2)
 plot([0 results.totalDrift(peakShear80Index,:)],0:nStories,'*-')
 grid on
 grid minor
 ylabel('Story')
 xlabel('Total drift')
-title('80% of Peak Shear')
+title('Deflected Shape')
+legend('V_max','V_8_0','Location','Southeast')
