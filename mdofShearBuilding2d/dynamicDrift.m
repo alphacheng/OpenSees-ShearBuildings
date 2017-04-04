@@ -39,7 +39,7 @@ bldg.storySpringDefinition = {
 };
 
 %% Response History Analysis
-gmfile  = fullfile(pwd,'test.acc');
+gmfile  = fullfile(pathOf.scratch,'test.acc');
 dt      = 0.01;
 SF      = 200.0;
 tend    = 33.0;
@@ -64,3 +64,17 @@ axis([axisLimits(1:2),-max(abs(axisLimits(3:4))),max(abs(axisLimits(3:4)))])
 xlabel('Time (s)')
 ylabel('Roof drift')
 title('Roof Drift')
+
+% Vary safety factor
+SF = 10:10:200;
+maxDrift = zeros(length(SF),1);
+for i = 1:length(SF)
+    results = bldg.responseHistory(gmfile,dt,SF(i),tend);
+    maxDrift(i) = max(max(abs(results.storyDrift)));
+end
+
+figure
+plot(maxDrift,SF,'o-')
+grid on
+xlabel('Maximum story drift')
+ylabel('Ground motion factor')
