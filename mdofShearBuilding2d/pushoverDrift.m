@@ -73,4 +73,4 @@ grid minor
 ylabel('Story')
 xlabel('Total drift')
 title('Deflected Shape')
-legend('V_max','V_8_0','Location','Southeast')
+legend('V_m_a_x','V_8_0','Location','Southeast')
