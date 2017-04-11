@@ -33,30 +33,30 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             if ~isnumeric(storyMass)
                 error('storyMass should be numeric');
             end
-            if isvectorsize(storyMass,obj.nStories)
+            if isvectorsize(storyMass,obj.nStories) %#ok - nStories is set by the constructor
                 obj.storyMass = storyMass;
             else
-                error('storyMass should be vector of length %i (number of stories)',obj.nStories);
+                error('storyMass should be vector of length %i (number of stories)',obj.nStories); %#ok - nStories is set by the constructor
             end
         end
         function set.storyStiffness(obj,storyStiffness)
             if ~isnumeric(storyStiffness)
                 error('storyStiffness should be numeric');
             end
-            if isvectorsize(storyStiffness,obj.nStories)
+            if isvectorsize(storyStiffness,obj.nStories) %#ok - nStories is set by the constructor
                 obj.storyStiffness = storyStiffness;
             else
-                error('storyStiffness should be vector of length %i (number of stories)',obj.nStories);
+                error('storyStiffness should be vector of length %i (number of stories)',obj.nStories); %#ok - nStories is set by the constructor
             end
         end
         function set.storySpringDefinition(obj,storySpringDefinition)
             if ~iscell(storySpringDefinition)
                 error('storySpringDefinition should be a cell vector');
             end
-            if isvectorsize(storySpringDefinition,obj.nStories)
+            if isvectorsize(storySpringDefinition,obj.nStories) %#ok - nStories is set by the constructor
                 obj.storySpringDefinition = storySpringDefinition;
             else
-                error('storySpringDefinition should be cell vector of length %i (number of stories)',obj.nStories);
+                error('storySpringDefinition should be cell vector of length %i (number of stories)',obj.nStories); %#ok - nStories is set by the constructor
             end
         end
 
