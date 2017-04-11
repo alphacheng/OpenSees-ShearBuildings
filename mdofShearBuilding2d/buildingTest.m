@@ -10,7 +10,15 @@ bldg.deleteFilesAfterAnalysis = false;
 bldg.pushover_stepSize = 0.001;
 bldg.pushover_maxDrift = 6.0;
 
-bldg.storyMass = [2 1 1.5];
+A = 90*90;          % ft^2
+floorDL = 0.080;    % ksf
+roofDL = 0.030;     % ksf
+
+R = 8;
+Cd = 5.5;
+Omega_o = 3;
+
+bldg.storyMass = [floorDL*A floorDL*A roofDL*A];
 
 % Define Material
 K0 = 1000;      % elastic stiffness
@@ -41,7 +49,7 @@ bldg.storySpringDefinition = {
 gmfile  = 'test.acc';
 dt      = 0.01;
 SF      = 200.0;
-tend    = 33.0;
+tend    = 50.0;
 results = bldg.responseHistory(gmfile,dt,SF,tend);
 
 % Plot sample response history
