@@ -39,7 +39,7 @@ bldg.storySpringDefinition = {
 };
 
 %% Response History Analysis
-gmfile  = fullfile(pathOf.scratch,'test.acc');
+gmfile  = 'test.acc';
 dt      = 0.01;
 SF      = 200.0;
 tend    = 33.0;
