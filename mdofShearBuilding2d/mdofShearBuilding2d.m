@@ -329,7 +329,7 @@ fprintf(fid,'    } else {\n');
 fprintf(fid,'        set maxMode $modeB\n');
 fprintf(fid,'    }\n');
 fprintf(fid,'\n');
-fprintf(fid,'    set eigs    [eigen $maxMode]\n');
+fprintf(fid,'    set eigs    [eigen -fullGenLapack $maxMode]\n');
 fprintf(fid,'    set freqA   [expr sqrt([lindex $eigs [expr $modeA-1]])]\n');
 fprintf(fid,'    set freqB   [expr sqrt([lindex $eigs [expr $modeB-1]])]\n');
 fprintf(fid,'\n');
