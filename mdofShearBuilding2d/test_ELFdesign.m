@@ -1,6 +1,7 @@
 % test_ELFdesign.m
 % Units: kslug, kip, ft, sec
 
+tic
 clear; close all; clc;
 % load('ground_motions.mat');
 
@@ -8,7 +9,7 @@ clear; close all; clc;
 nStories = 3;
 bldg = mdofShearBuilding2d(nStories);
 bldg.echoOpenSeesOutput = false;
-bldg.deleteFilesAfterAnalysis = false;
+bldg.deleteFilesAfterAnalysis = true;
 bldg.g = 32.2;
 
 bldg.storyHeight = [20 15 15];
@@ -54,11 +55,17 @@ for i = 1:nStories
 end
 
 %% Response History Analysis
-gmfile  = 'test.acc';
-dt      = 0.01;
-SF      = 10.0;
-tend    = 33.0;
-results = bldg.responseHistory(gmfile,dt,SF*bldg.g,tend,1);
+load('ground_motions.mat');
+gmfile = bldg.scratchFile(sprintf('acc%s.acc',ground_motions(1).ID));
+gmfid = fopen(gmfile,'w+');
+for k = 1:ground_motions(1).numPoints
+    fprintf(gmfid,'%g\n',ground_motions(1).normalized_acceleration(k)*bldg.g);
+end
+dt      = ground_motions(1).dt;
+SF1     = FEMAP695_SF1(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
+SF      = SF1*12;
+tend    = max(ground_motions(1).time) + 5;
+results = bldg.responseHistory(gmfile,dt,SF,tend,1);
 
 % Plot sample response history
 figure
@@ -68,7 +75,8 @@ grid on
 grid minor
 xlabel('Time (s)')
 ylabel('Acceleration (ft/s^2)')
-title('Input Ground Motion')
+titleText = sprintf('Input Ground Motion (SF = %g)',SF);
+title(titleText)
 
 subplot(212)
 plot(results.time,results.roofDrift,'-')
@@ -80,17 +88,21 @@ xlabel('Time (s)')
 ylabel('Drift (ft)')
 title('Roof Drift')
 
-% Vary safety factor
-SF = 1:0.2:10;
+% Vary scale factor
+SF2 = [0:.25:1.5, 2:0.5:6, 6.75:0.75:9, 10:12];
 maxDrift = zeros(length(SF),1);
-parfor i = 1:length(SF)
-    fprintf('Calculating IDA point for SF = %g\n',SF(i));
-    results = bldg.responseHistory(gmfile,dt,SF(i)*bldg.g,tend,i);
+parfor i = 1:length(SF2)
+    fprintf('Calculating IDA point for SF2 = %g\n',SF2(i));
+    SF = SF1*SF2(i);
+    results = bldg.responseHistory(gmfile,dt,SF,tend,i);
     maxDrift(i) = max(max(abs(results.storyDrift)));
 end
 
 figure
-plot(maxDrift,SF,'o-')
+ST = FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory)*SF2;
+plot(maxDrift,ST,'o-')
 grid on
 xlabel('Maximum story drift')
-ylabel('Ground motion factor')
+ylabel('Ground motion intensity, S_T')
+
+toc
