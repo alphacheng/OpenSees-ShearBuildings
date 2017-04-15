@@ -1,5 +1,5 @@
 
-function materialDefinition = pinchingMaterialDefinition(K0, as, My, Fpr, A_Pinch, Lambda, c, theta_p, theta_pc, Res, theta_u, D)
+function materialDefinition = pinchingMaterialDefinition(matTag, K0, as, My, Fpr, A_Pinch, Lambda, c, theta_p, theta_pc, Res, theta_u, D)
 
 %K0;                        % elastic stiffness
 as_Plus = as;               % strain hardening ratio for positive loading direction
@@ -28,8 +28,8 @@ theta_u_Neg = theta_u;      % ultimate rotation capacity for negative loading di
 D_Plus = D;                 % rate of cyclic deterioration in the positive loading direction (this parameter is used to create asymmetric hysteretic behavior for the case of a composite beam). For symmetric hysteretic response use 1.0.
 D_Neg = D;                  % rate of cyclic deterioration in the negative loading direction (this parameter is used to create asymmetric hysteretic behavior for the case of a composite beam). For symmetric hysteretic response use 1.0.
 
-materialDefinition = sprintf('uniaxialMaterial ModIMKPinching 1 %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g',...
-    K0,as_Plus,as_Neg,My_Plus,My_Neg,FprPos,FprNeg,A_Pinch,Lambda_S,Lambda_C,Lambda_A,Lambda_K,...
+materialDefinition = sprintf('uniaxialMaterial ModIMKPinching %i %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g',...
+    matTag,K0,as_Plus,as_Neg,My_Plus,My_Neg,FprPos,FprNeg,A_Pinch,Lambda_S,Lambda_C,Lambda_A,Lambda_K,...
     c_S,c_C,c_A,c_K,theta_p_Plus,theta_p_Neg,theta_pc_Plus,theta_pc_Neg,...
     Res_Pos,Res_Neg,theta_u_Plus,theta_u_Neg,D_Plus,D_Neg);
 

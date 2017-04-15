@@ -1,5 +1,5 @@
 
-function materialDefinition = bilinearMaterialDefinition(K0, as, My, Lambda, c, theta_p, theta_pc, Res, theta_u, D, nFactor)
+function materialDefinition = bilinearMaterialDefinition(matTag, K0, as, My, Lambda, c, theta_p, theta_pc, Res, theta_u, D, nFactor)
 
 %K0;                        % elastic stiffness
 as_Plus = as;               % strain hardening ratio for positive loading direction
@@ -26,8 +26,8 @@ D_Plus = D;                 % rate of cyclic deterioration in the positive loadi
 D_Neg = D;                  % rate of cyclic deterioration in the negative loading direction (this parameter is used to create asymmetric hysteretic behavior for the case of a composite beam). For symmetric hysteretic response use 1.0.
 %nFactor;                   % elastic stiffness amplification factor, mainly for use with concentrated plastic hinge elements (optional, default = 0).
 
-materialDefinition = sprintf('uniaxialMaterial Bilin 1 %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g',...
-    K0,as_Plus,as_Neg,My_Plus,My_Neg,Lambda_S,Lambda_C,Lambda_A,Lambda_K,...
+materialDefinition = sprintf('uniaxialMaterial Bilin %i %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g',...
+    matTag,K0,as_Plus,as_Neg,My_Plus,My_Neg,Lambda_S,Lambda_C,Lambda_A,Lambda_K,...
     c_S,c_C,c_A,c_K,theta_p_Plus,theta_p_Neg,theta_pc_Plus,theta_pc_Neg,...
     Res_Pos,Res_Neg,theta_u_Plus,theta_u_Neg,D_Plus,D_Neg,nFactor);
 
