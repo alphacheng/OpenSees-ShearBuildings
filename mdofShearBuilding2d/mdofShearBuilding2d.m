@@ -272,16 +272,16 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 delete(filename_input,filename_output_def,filename_output_force);
             end
         end %function:pushover
-        function results = responseHistory(obj,groundMotionFilename,dt,SF,tend)
+        function results = responseHistory(obj,groundMotionFilename,dt,SF,tend,indexNum)
             %% Response History Analysis
             % Initialize Results
             results = struct;
 
             % Filenames
-            filename_input              = obj.scratchFile('mdofShearBuilding2d_input.tcl');
-            filename_output_timeSeries  = obj.scratchFile('mdofShearBuilding2d_timeSeries.out');
-            filename_output_def         = obj.scratchFile('mdofShearBuilding2d_disp.out');
-            filename_output_force       = obj.scratchFile('mdofShearBuilding2d_force.out');
+            filename_input              = obj.scratchFile(sprintf('mdofShearBuilding2d_input_%i.tcl',indexNum));
+            filename_output_timeSeries  = obj.scratchFile(sprintf('mdofShearBuilding2d_timeSeries_%i.out',indexNum));
+            filename_output_def         = obj.scratchFile(sprintf('mdofShearBuilding2d_disp_%i.out',indexNum));
+            filename_output_force       = obj.scratchFile(sprintf('mdofShearBuilding2d_force_%i.out',indexNum));
 
             % Create .tcl file
             fid = fopen(filename_input,'w');
