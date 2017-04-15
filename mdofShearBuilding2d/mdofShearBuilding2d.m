@@ -16,6 +16,10 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
         pushover_stepSize   = 0.001;
         pushover_maxDrift   = 6.0;
+
+        % Equivalent Lateral Force procedure
+        seismicDesignCategory
+
     end
 
     methods
@@ -301,6 +305,17 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     filename_output_def,filename_output_force);
             end
         end %function:responseHistory
+
+        function results = ELFdesign(obj)
+            %% Equivalent Lateral Force procedure (ASCE 7-10)
+
+            results = struct;
+            
+
+
+
+
+    end %function:equivalentLateralForceDesign
     end %methods
 end %classdef:mdofShearBuilding2d
 
