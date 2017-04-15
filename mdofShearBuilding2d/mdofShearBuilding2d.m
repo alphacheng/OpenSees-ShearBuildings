@@ -200,10 +200,10 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             if obj.deleteFilesAfterAnalysis
                 delete(filename_input,filename_output_def,filename_output_force);
             end
-        end
+        end %function:pushover
         function results = responseHistory(obj,groundMotionFilename,dt,SF,tend)
             %% Response History Analysis
-            % Initilize Results
+            % Initialize Results
             results = struct;
 
             % Filenames
@@ -300,45 +300,45 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 delete(filename_input,filename_output_timeSeries,...
                     filename_output_def,filename_output_force);
             end
-        end
-    end
-end
+        end %function:responseHistory
+    end %methods
+end %classdef:mdofShearBuilding2d
 
 
 function tf = isvectorsize(v,n)
-s = size(v);
-tf = isequal(s,[n 1]) || isequal(s,[1 n]);
-end
+    s = size(v);
+    tf = isequal(s,[n 1]) || isequal(s,[1 n]);
+end %function:isvectorsize
 
 function writeFunction_updateRayleighDamping(fid)
-fprintf(fid,'proc updateRayleighDamping { modeA ratioA modeB ratioB } {\n');
-fprintf(fid,'    # ###################################################################\n');
-fprintf(fid,'    # updateRayleighDamping $modeA $ratioA $modeB $ratioB\n');
-fprintf(fid,'    # ###################################################################\n');
-fprintf(fid,'    # Runs an eigenvalue analysis and set proportional damping based on\n');
-fprintf(fid,'    # the current state of the structure\n');
-fprintf(fid,'    #\n');
-fprintf(fid,'    # Input Parameters:\n');
-fprintf(fid,'    # modeA, modeB - modes that will have perscribed damping ratios\n');
-fprintf(fid,'    # ratioA, ratioB - damping ratios perscribed at the specified modes\n');
-fprintf(fid,'\n');
-fprintf(fid,'    # Get natural frequencies at the desired modes\n');
-fprintf(fid,'    if { $modeA > $modeB } {\n');
-fprintf(fid,'        set maxMode $modeA\n');
-fprintf(fid,'    } else {\n');
-fprintf(fid,'        set maxMode $modeB\n');
-fprintf(fid,'    }\n');
-fprintf(fid,'\n');
-fprintf(fid,'    set eigs    [eigen -fullGenLapack $maxMode]\n');
-fprintf(fid,'    set freqA   [expr sqrt([lindex $eigs [expr $modeA-1]])]\n');
-fprintf(fid,'    set freqB   [expr sqrt([lindex $eigs [expr $modeB-1]])]\n');
-fprintf(fid,'\n');
-fprintf(fid,'    # Compute the damping factors\n');
-fprintf(fid,'    set tempVal [expr 2.0/($freqA*$freqA-$freqB*$freqB)]\n');
-fprintf(fid,'    set aM      [expr $tempVal*$freqA*$freqB*($ratioB*$freqA-$ratioA*$freqB)]\n');
-fprintf(fid,'    set aK      [expr $tempVal*($ratioA*$freqA-$ratioB*$freqB)]\n');
-fprintf(fid,'\n');
-fprintf(fid,'    # Set the damping\n');
-fprintf(fid,'    rayleigh $aM 0.0 0.0 $aK\n');
-fprintf(fid,'}\n');
-end
+    fprintf(fid,'proc updateRayleighDamping { modeA ratioA modeB ratioB } {\n');
+    fprintf(fid,'    # ###################################################################\n');
+    fprintf(fid,'    # updateRayleighDamping $modeA $ratioA $modeB $ratioB\n');
+    fprintf(fid,'    # ###################################################################\n');
+    fprintf(fid,'    # Runs an eigenvalue analysis and set proportional damping based on\n');
+    fprintf(fid,'    # the current state of the structure\n');
+    fprintf(fid,'    #\n');
+    fprintf(fid,'    # Input Parameters:\n');
+    fprintf(fid,'    # modeA, modeB - modes that will have perscribed damping ratios\n');
+    fprintf(fid,'    # ratioA, ratioB - damping ratios perscribed at the specified modes\n');
+    fprintf(fid,'\n');
+    fprintf(fid,'    # Get natural frequencies at the desired modes\n');
+    fprintf(fid,'    if { $modeA > $modeB } {\n');
+    fprintf(fid,'        set maxMode $modeA\n');
+    fprintf(fid,'    } else {\n');
+    fprintf(fid,'        set maxMode $modeB\n');
+    fprintf(fid,'    }\n');
+    fprintf(fid,'\n');
+    fprintf(fid,'    set eigs    [eigen -fullGenLapack $maxMode]\n');
+    fprintf(fid,'    set freqA   [expr sqrt([lindex $eigs [expr $modeA-1]])]\n');
+    fprintf(fid,'    set freqB   [expr sqrt([lindex $eigs [expr $modeB-1]])]\n');
+    fprintf(fid,'\n');
+    fprintf(fid,'    # Compute the damping factors\n');
+    fprintf(fid,'    set tempVal [expr 2.0/($freqA*$freqA-$freqB*$freqB)]\n');
+    fprintf(fid,'    set aM      [expr $tempVal*$freqA*$freqB*($ratioB*$freqA-$ratioA*$freqB)]\n');
+    fprintf(fid,'    set aK      [expr $tempVal*($ratioA*$freqA-$ratioB*$freqB)]\n');
+    fprintf(fid,'\n');
+    fprintf(fid,'    # Set the damping\n');
+    fprintf(fid,'    rayleigh $aM 0.0 0.0 $aK\n');
+    fprintf(fid,'}\n');
+end %function:writeFunction_updateRayleighDamping
