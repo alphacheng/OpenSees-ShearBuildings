@@ -1,0 +1,17 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+
+\begin{document}
+The story deflections are given by equation 12.8-15 as:
+$$\delta_x = \frac{C_d \delta_{xe}}{I_e}$$
+Where $\delta_{xe}$ is the calculated elastic deflection. This is taken to be:
+$$\delta_{xe} = \frac{F_x}{K_x}$$
+Where $F_x$ is the design story shear (\S 12.8.3) and $K_x$ is the story stiffness.
+The story drift is the difference between story deflections:
+$$\Delta_x = \delta_x - \delta_{x-1}$$
+Equations 1 and 2 can substituted into this to get:
+$$\Delta_x = \frac{C_d}{I_e} \left(\frac{F_x}{K_x} - \frac{F_{x-1}}{K_{x-1}}\right)$$
+$K_x$ is then solved for:
+$$K_x = \frac{F_x}{\frac{\Delta_x I_e}{C_d} + \frac{F_{x-1}}{K_{x-1}}}$$
+\end{document}
