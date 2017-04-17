@@ -40,65 +40,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %
             obj.nStories = nStories;
         end
-        %% Remember to move me to my home later!
-        function results = ELFdesign(obj)
-            %% Equivalent Lateral Force procedure (ASCE 7-10)
 
-            results = struct;
-
-            SDS = FEMAP695_mappedValue('SDS',obj.seismicDesignCategory);
-            SD1 = FEMAP695_mappedValue('SD1',obj.seismicDesignCategory);
-
-            approxFundamentalPeriod = 0.02*sum(obj.storyHeight)^0.75;
-
-            if SD1 <= 0.1
-                Cu = 1.7;
-            elseif SD1 >= 0.4
-                Cu = 1.4;
-            else
-                Cu = linterp([0.1 0.15 0.2 0.3 0.4],[1.7 1.6 1.5 1.4 1.4],SD1);
-            end
-
-            if isempty(obj.fundamentalPeriod)
-                obj.fundamentalPeriod = 0.02*sum(obj.storyHeight)^0.75;
-            elseif obj.fundamentalPeriod > Cu*approxFundamentalPeriod
-                obj.fundamentalPeriod = Cu*approxFundamentalPeriod;
-            end
-
-            maxSeismicResponseCoefficient = SD1/(obj.fundamentalPeriod*obj.responseModificationCoefficient/obj.importanceFactor);
-
-            results.seismicResponseCoefficient = min(SDS/(obj.responseModificationCoefficient/obj.importanceFactor),maxSeismicResponseCoefficient);
-
-            seismicWeight = sum(obj.storyMass)*obj.g;
-            baseShear = seismicWeight*results.seismicResponseCoefficient;
-
-            if obj.fundamentalPeriod <= 0.5
-                k = 1;
-            elseif obj.fundamentalPeriod >= 2.5
-                k = 2;
-            else
-                k = linterp([0.5 2.5],[1 2],obj.fundamentalPeriod);
-            end
-
-            verticalDistributionFactor = (obj.storyMass*obj.g .* obj.storyHeight.^k)/sum(obj.storyMass*obj.g .* obj.storyHeight.^k);
-
-            results.designStoryShear = verticalDistributionFactor*baseShear;
-            results.designStoryDrift = zeros(1,obj.nStories);
-            for i = 1:obj.nStories
-                results.designStoryDrift(i) = 0.020*sum(obj.storyHeight(1:i));
-            end
-
-            results.designStiffness = zeros(1,obj.nStories);
-            results.designStiffness(1) = obj.deflectionAmplificationFactor*results.designStoryShear(1)/(obj.importanceFactor*results.designStoryDrift(1));
-            for i = 2:obj.nStories
-                results.designStiffness(i) = results.designStoryShear(i)/(results.designStoryDrift(i)*obj.importanceFactor/obj.deflectionAmplificationFactor + results.designStoryShear(i-1)/results.designStiffness(i-1));
-            end
-
-            results.designStrength  = results.designStoryShear*obj.overstrengthFactor;
-
-
-
-        end %function:equivalentLateralForceDesign
         %% Set functions
         function set.storyMass(obj,storyMass)
             if ~isnumeric(storyMass)
@@ -372,7 +314,63 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     filename_output_def,filename_output_force);
             end
         end %function:responseHistory
+        function results = ELFdesign(obj)
+            %% Equivalent Lateral Force procedure (ASCE 7-10)
 
+            results = struct;
+
+            SDS = FEMAP695_mappedValue('SDS',obj.seismicDesignCategory);
+            SD1 = FEMAP695_mappedValue('SD1',obj.seismicDesignCategory);
+
+            approxFundamentalPeriod = 0.02*sum(obj.storyHeight)^0.75;
+
+            if SD1 <= 0.1
+                Cu = 1.7;
+            elseif SD1 >= 0.4
+                Cu = 1.4;
+            else
+                Cu = linterp([0.1 0.15 0.2 0.3 0.4],[1.7 1.6 1.5 1.4 1.4],SD1);
+            end
+
+            if isempty(obj.fundamentalPeriod)
+                obj.fundamentalPeriod = 0.02*sum(obj.storyHeight)^0.75;
+            elseif obj.fundamentalPeriod > Cu*approxFundamentalPeriod
+                obj.fundamentalPeriod = Cu*approxFundamentalPeriod;
+            end
+
+            maxSeismicResponseCoefficient = SD1/(obj.fundamentalPeriod*obj.responseModificationCoefficient/obj.importanceFactor);
+            results.seismicResponseCoefficient = min(SDS/(obj.responseModificationCoefficient/obj.importanceFactor),maxSeismicResponseCoefficient);
+
+            seismicWeight = sum(obj.storyMass)*obj.g;
+            baseShear = seismicWeight*results.seismicResponseCoefficient;
+
+            if obj.fundamentalPeriod <= 0.5
+                k = 1;
+            elseif obj.fundamentalPeriod >= 2.5
+                k = 2;
+            else
+                k = linterp([0.5 2.5],[1 2],obj.fundamentalPeriod);
+            end
+
+            verticalDistributionFactor = (obj.storyMass*obj.g .* obj.storyHeight.^k)/sum(obj.storyMass*obj.g .* obj.storyHeight.^k);
+
+            results.designStoryShear = verticalDistributionFactor*baseShear;
+            results.designStoryDrift = zeros(1,obj.nStories);
+            for i = 1:obj.nStories
+                results.designStoryDrift(i) = 0.020*sum(obj.storyHeight(1:i));
+            end
+
+            results.designStiffness = zeros(1,obj.nStories);
+            results.designStiffness(1) = obj.deflectionAmplificationFactor*results.designStoryShear(1)/(obj.importanceFactor*results.designStoryDrift(1));
+            for i = 2:obj.nStories
+                results.designStiffness(i) = results.designStoryShear(i)/(results.designStoryDrift(i)*obj.importanceFactor/obj.deflectionAmplificationFactor + results.designStoryShear(i-1)/results.designStiffness(i-1));
+            end
+
+            results.designStrength  = results.designStoryShear*obj.overstrengthFactor;
+
+
+
+        end %function:equivalentLateralForceDesign
 
     end %methods
 end %classdef:mdofShearBuilding2d
