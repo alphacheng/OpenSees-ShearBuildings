@@ -107,7 +107,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             fprintf(fid, 'set fid [open %s w+]\n', filename_eigs);
             fprintf(fid, 'puts $fid $eigs\n');
             fprintf(fid, 'close $fid\n');
-            fclose(filename_input);
+            fclose(fid);
 
             [~,~] = obj.runOpenSees(filename_input);
 
