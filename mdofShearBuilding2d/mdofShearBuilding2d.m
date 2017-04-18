@@ -83,6 +83,40 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         end
 
         %% Analyses
+        function eigenvals = eigenvalues(obj)
+            %% Eigenvalue analysis
+            filename_input = obj.scratchFile('mdofShearBuilding2d_input.tcl');
+            filename_eigs  = obj.scratchFile('mdofShearBuilding2d_eigs.out');
+
+            fid = fopen(filename_input,'w');
+            fprintf(fid,'model BasicBuilder -ndm 1 -ndf 1 \n');
+            for i = 0:obj.nStories
+                fprintf(fid,'node %i 0.0\n',i);
+            end
+            for i = 1:obj.nStories
+                fprintf(fid,'mass %i %g\n',i,obj.storyMass(i));
+            end
+            fprintf(fid,'fix 0 1 \n');
+            for i = 1:length(obj.storySpringDefinition)
+                fprintf(fid,'%s\n',obj.storySpringDefinition{i});
+            end
+            for i = 1:obj.nStories
+                fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1\n',i,i-1,i,i);
+            end
+            fprintf(fid, 'set eigs [eigen -fullGenLapack %i]\n', obj.nStories);
+            fprintf(fid, 'set fid [open %s w+]\n', filename_eigs);
+            fprintf(fid, 'puts $fid $eigs\n');
+            fprintf(fid, 'close $fid\n');
+
+            [~,~] = obj.runOpenSees(filename_input);
+
+            eigenvals = dlmread(filename_eigs);
+
+            if obj.deleteFilesAfterAnalysis
+                delete(filename_input,filename_eigs);
+            end
+
+        end %function:eigenvalues
         function results = pushover(obj,F,type,varargin)
             %% Pushover Analysis
             assert(isnumeric(F) & isvectorsize(F,obj.nStories),...
