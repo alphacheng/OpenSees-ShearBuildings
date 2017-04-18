@@ -18,13 +18,17 @@ storyDL = [0.080 0.080 0.030];                  % Story dead loads (ksf)
 storyArea = 90*90*ones(1,nStories);             % Story areas (ft^2)
 bldg.storyMass = (storyDL .* storyArea)/bldg.g; % Story masses (kslug)
 
-%% Design building
 bldg.seismicDesignCategory = 'Dmax';
 bldg.responseModificationCoefficient = 8;
 bldg.deflectionAmplificationFactor = 5.5;
 bldg.overstrengthFactor = 3;
 bldg.importanceFactor = 1;
 
+%% Analysis Options
+nMotions = 6;                                   % Number of IDA curves to calculate
+SF2 = [0:.25:1.5, 2:0.5:6, 6.75:0.75:9, 10:12]; % Scale factors to vary along each IDA curve; length(SF2) = numPoints of each curve
+
+%% Design building
 resultsELF = bldg.ELFdesign();
 
 periodDiff = 1;
@@ -51,7 +55,7 @@ while abs(periodDiff) > minDiff
     end
 
     theta_pc = theta_p;                       % post-capping rotation
-    theta_u = theta_y + theta_p + 2/3*theta_pc; % ultimate rotation capacity
+    theta_u = theta_y + theta_p + 4/3*theta_pc; % ultimate rotation capacity
 
     bldg.storySpringDefinition = cell(nStories,1);
     for i = 1:nStories
@@ -71,12 +75,10 @@ end
 
 %% Response History Analysis
 load('ground_motions.mat');
-SF2 = [0:.25:1.5, 2:0.5:6, 6.75:0.75:9, 10:12];
 SMT = FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
 ST  = SMT*SF2;
 figure
 hold on
-nMotions = 6;
 legendentries = cell(nMotions,1);
 results = cell(nMotions,length(SF2));
 for i = 1:nMotions %length(ground_motions)
