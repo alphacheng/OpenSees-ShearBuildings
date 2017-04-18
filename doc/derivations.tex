@@ -24,7 +24,11 @@
 }
 
 %-------------------------------- Document info --------------------------------
-\title{Equivalent Lateral Force Procedure}
+\title{Story Spring Derivation \\
+       \vspace{0.5em}
+       \large Modified Ibarra-Medina-Krawinkler Bilinear material\\
+       \vspace{0.5em}
+       \large ASCE 7-10 Equivalent Lateral Force Procedure}
 \author{Peter Talley}
 \date{April 18, 2017}
 
@@ -37,37 +41,55 @@
 
 %---------------------------------- Section 1 ----------------------------------
 \section{Design story stiffness}
-The story deflections are given by equation 12.8-15 as:
+The deflection of a given story $x$ is given by equation 12.8-15 as:
 
 \begin{equation} \label{eq:defl}
     \delta_x = \frac{C_d \delta_{xe}}{I_e}
 \end{equation}
-
 Where $\delta_{xe}$ is the calculated elastic deflection. This is taken to be:
-
 \begin{equation} \label{eq:elastdefl}
 	\delta_{xe} = \frac{F_x}{K_x}
 \end{equation}
-
 Where $F_x$ is the design story shear (\S 12.8.3) and $K_x$ is the story stiffness. The story drift is the difference between story deflections:
-
 \begin{equation} \label{eq:drift}
 	\Delta_x = \delta_x - \delta_{x-1}
 \end{equation}
-
-Equations \eqref{eq:defl} and \eqref{eq:elastdefl} can substituted into this to get:
-
+Equations \eqref{eq:defl} and \eqref{eq:elastdefl} can be substituted into this to get:
 \begin{equation} \label{eq:driftsubs}
 	\Delta_x = \frac{C_d}{I_e} \left(\frac{F_x}{K_x} - \frac{F_{x-1}}{K_{x-1}}\right)
 \end{equation}
-
 $K_x$ is then solved for:
-
 \begin{equation} \label{eq:stiffness}
     K_x = \frac{F_x}{\frac{\Delta_x I_e}{C_d} + \frac{F_{x-1}}{K_{x-1}}}
 \end{equation}
 
+\section{Design story strength}
+The maximum strength of each story $x$, $M_c$, is taken as:
+\begin{equation}
+  M_{cx} = Ω_o F_x
+\end{equation}
+Where $Ω_o$ is the system overstrength factor and $F_x$ is the design story shear.
+
 \section{Pre-capping rotation}
-The equivalent lateral force procedure returns the maximum strength, $M_c$, which is used to back-calculate the yield strength, $M_y$, of the story. This also requires an assumption of the ratio of the pre-capping rotation, $θ_p$, to the rotation at yield, $θ_y$. This is a variable in the analysis, \texttt{py\_factor}.
+The equivalent lateral force procedure returns the maximum strength, $M_c$, which is used to back-calculate the yield strength, $M_y$, of the story. This also requires an assumption of the ratio of the pre-capping rotation, $θ_p$, to the rotation at yield, $θ_y$. This is treated as a variable in the analysis, $C_{py}$ or \texttt{py\_factor}. Using linear relations and this proportional assumption, the following system of equations is developed:
+\begin{subequations}
+  \label{eq:rotation}
+  \begin{align}
+    θ_{px} - C_{py}θ_{yx} & = 0 \label{eq:rotate1} \\
+    a_sK_xθ_{px} + M_{yx} & = M_{cx} \label{eq:rotate2} \\
+    θ_{yx} - K_x^{-1}M_{yx} & = 0 \label{eq:rotate3}
+  \end{align}
+\end{subequations}
+This system is solved for each floor $x$. $a_s$ and $C_{py}$ are assumed to be the same for each story.
+
+\section{Post-capping and ultimate rotation}
+The post-capping rotation is currently defined as proportional to $θ_p$:
+\begin{equation}
+  θ_{pc} = C_{pcp}θ_p
+\end{equation}
+The ultimate rotation is currently defined simply in terms of the previously calculated rotations, taking some amount of $θ_{pc}$:
+\begin{equation}
+  θ_u = θ_y + θ_p + C_{pcu}θ_{pc}
+\end{equation}
 
 \end{document}
