@@ -104,7 +104,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1\n',i,i-1,i,i);
             end
             fprintf(fid, 'set eigs [eigen -fullGenLapack %i]\n', obj.nStories);
-            fprintf(fid, 'set fid [open %s w+]\n', filename_eigs);
+            fprintf(fid, 'set fid [open %s w+]\n', obj.path_for_tcl(filename_eigs));
             fprintf(fid, 'puts $fid $eigs\n');
             fprintf(fid, 'close $fid\n');
             fclose(fid);
