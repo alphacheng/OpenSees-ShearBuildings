@@ -366,7 +366,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             elseif SD1 >= 0.4
                 Cu = 1.4;
             else
-                Cu = linterp([0.1 0.15 0.2 0.3 0.4],[1.7 1.6 1.5 1.4 1.4],SD1);
+                Cu = interp1([0.1 0.15 0.2 0.3 0.4],[1.7 1.6 1.5 1.4 1.4],SD1);
             end
 
             if isempty(obj.fundamentalPeriod)
@@ -386,7 +386,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             elseif obj.fundamentalPeriod >= 2.5
                 k = 2;
             else
-                k = linterp([0.5 2.5],[1 2],obj.fundamentalPeriod);
+                k = interp1([0.5 2.5],[1 2],obj.fundamentalPeriod);
             end
 
             verticalDistributionFactor = (obj.storyMass*obj.g .* obj.storyHeight.^k)/sum(obj.storyMass*obj.g .* obj.storyHeight.^k);
