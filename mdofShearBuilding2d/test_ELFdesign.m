@@ -28,17 +28,15 @@ bldg.importanceFactor = 1;
 resultsELF = bldg.ELFdesign();
 
 %% Define springs
-K0 = resultsELF.designStiffness;      % elastic stiffness
-as = 0.04;      % strain hardening ratio
-M_y = zeros(nStories,1);
-Lambda = 8;     % Cyclic deterioration parameter
-Fpr = 0.2;      % Ratio of (the force at which reloading begins)/(the force corresponding to the maximum historic deformation demand)
-A_Pinch = 0.2;  % Ratio of reloading stiffness
-c = 1;          % rate of deterioration
-theta_p = zeros(nStories,1);  % pre-capping rotation
-Res = 0.2;      % residual strength ratio
-D = 1.0;        % rate of cyclic deterioration
-nFactor = 0;    % elastic stiffness amplification factor
+K0 = resultsELF.designStiffness;    % elastic stiffness
+as = 0.04;                          % strain hardening ratio
+M_y = zeros(nStories,1);            % effective yield strength
+Lambda = 8;                         % Cyclic deterioration parameter
+c = 1;                              % rate of deterioration
+theta_p = zeros(nStories,1);        % pre-capping rotation
+Res = 0.2;                          % residual strength ratio
+D = 1.0;                            % rate of cyclic deterioration
+nFactor = 0;                        % elastic stiffness amplification factor
 
 py_factor = 3;  % ratio of theta_p to theta_y
 theta_y = zeros(nStories,1);
