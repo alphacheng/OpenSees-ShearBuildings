@@ -1,17 +1,73 @@
-\documentclass{article}
+% homework9.tex
 
+\documentclass[11pt,letterpaper]{article}
+
+%---------------------------------- Packages -----------------------------------
 \usepackage{amsmath}
+\usepackage{unicode-math}
+\usepackage{fontspec}
+\usepackage{graphicx}
+\usepackage{tabulary}
+\usepackage{hyperref}
+\usepackage{fancyvrb}
 
+%----------------------------------- Options -----------------------------------
+\setmathfont{STIX Two Math}
+\setmainfont{STIX Two Text}
+\setmonofont{Consolas}
+
+\hypersetup{
+  colorlinks  = true,
+  urlcolor    = blue,
+  linkcolor   = blue,
+  citecolor   = blue
+}
+
+%-------------------------------- Document info --------------------------------
+\title{Equivalent Lateral Force Procedure}
+\author{Peter Talley}
+\date{April 18, 2017}
+
+%###############################################################################
+%################################ Document Body ################################
+%###############################################################################
 \begin{document}
+
+\maketitle
+
+%---------------------------------- Section 1 ----------------------------------
+\section{Design story stiffness}
 The story deflections are given by equation 12.8-15 as:
-$$\delta_x = \frac{C_d \delta_{xe}}{I_e}$$
+
+\begin{equation} \label{eq:defl}
+    \delta_x = \frac{C_d \delta_{xe}}{I_e}
+\end{equation}
+
 Where $\delta_{xe}$ is the calculated elastic deflection. This is taken to be:
-$$\delta_{xe} = \frac{F_x}{K_x}$$
-Where $F_x$ is the design story shear (\S 12.8.3) and $K_x$ is the story stiffness.
-The story drift is the difference between story deflections:
-$$\Delta_x = \delta_x - \delta_{x-1}$$
-Equations 1 and 2 can substituted into this to get:
-$$\Delta_x = \frac{C_d}{I_e} \left(\frac{F_x}{K_x} - \frac{F_{x-1}}{K_{x-1}}\right)$$
+
+\begin{equation} \label{eq:elastdefl}
+	\delta_{xe} = \frac{F_x}{K_x}
+\end{equation}
+
+Where $F_x$ is the design story shear (\S 12.8.3) and $K_x$ is the story stiffness. The story drift is the difference between story deflections:
+
+\begin{equation} \label{eq:drift}
+	\Delta_x = \delta_x - \delta_{x-1}
+\end{equation}
+
+Equations \eqref{eq:defl} and \eqref{eq:elastdefl} can substituted into this to get:
+
+\begin{equation} \label{eq:driftsubs}
+	\Delta_x = \frac{C_d}{I_e} \left(\frac{F_x}{K_x} - \frac{F_{x-1}}{K_{x-1}}\right)
+\end{equation}
+
 $K_x$ is then solved for:
-$$K_x = \frac{F_x}{\frac{\Delta_x I_e}{C_d} + \frac{F_{x-1}}{K_{x-1}}}$$
+
+\begin{equation} \label{eq:stiffness}
+    K_x = \frac{F_x}{\frac{\Delta_x I_e}{C_d} + \frac{F_{x-1}}{K_{x-1}}}
+\end{equation}
+
+\section{Pre-capping rotation}
+The equivalent lateral force procedure returns the maximum strength, $M_c$, which is used to back-calculate the yield strength, $M_y$, of the story. This also requires an assumption of the ratio of the pre-capping rotation, $θ_p$, to the rotation at yield, $θ_y$. This is a variable in the analysis, \texttt{py\_factor}.
+
 \end{document}
