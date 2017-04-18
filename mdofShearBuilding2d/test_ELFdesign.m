@@ -3,7 +3,7 @@
 
 tic
 clear; close all; clc;
-% load('ground_motions.mat');
+addpath('../UniaxialMaterialAnalysis');
 
 %% Define Building
 nStories = 3;
@@ -41,7 +41,7 @@ while abs(periodDiff) > minDiff
     D = 1.0;                            % rate of cyclic deterioration
     nFactor = 0;                        % elastic stiffness amplification factor
 
-    py_factor = 3;  % ratio of theta_p to theta_y
+    py_factor = 1;  % ratio of theta_p to theta_y
     theta_y = zeros(nStories,1);
     for i = 1:nStories
         Solution = [-py_factor 1 0 ; 0 as*K0(i) 1 ; 1 0 -1/K0(i)]^-1 * [0 ; resultsELF.designStrength(i) ; 0];
@@ -50,7 +50,7 @@ while abs(periodDiff) > minDiff
         M_y(i)     = Solution(3); % effective yield strength
     end
 
-    theta_pc = 4*theta_p;                       % post-capping rotation
+    theta_pc = 2*theta_p;                       % post-capping rotation
     theta_u = theta_y + theta_p + 2/3*theta_pc; % ultimate rotation capacity
 
     bldg.storySpringDefinition = cell(nStories,1);
@@ -118,5 +118,18 @@ legend(legendentries)
 
 % Plot sample response history
 plotSampleResponse(results{1,5})
+
+% Plot backbone curves
+figure
+hold on
+for i = 1:nStories
+    subplot(nStories,1,i)
+    materialDefinition = bldg.storySpringDefinition{i};
+    matTagLoc = strfind(materialDefinition,num2str(i));
+    materialDefinition(matTagLoc(1)) = '1';
+    plotBackboneCurve(materialDefinition,theta_u(i),false)
+end
+
+rmpath('../UniaxialMaterialAnalysis');
 
 toc
