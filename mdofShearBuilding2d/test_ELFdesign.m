@@ -27,32 +27,46 @@ bldg.importanceFactor = 1;
 
 resultsELF = bldg.ELFdesign();
 
-%% Define springs
-K0 = resultsELF.designStiffness;    % elastic stiffness
-as = 0.04;                          % strain hardening ratio
-M_y = zeros(nStories,1);            % effective yield strength
-Lambda = 8;                         % Cyclic deterioration parameter
-c = 1;                              % rate of deterioration
-theta_p = zeros(nStories,1);        % pre-capping rotation
-Res = 0.2;                          % residual strength ratio
-D = 1.0;                            % rate of cyclic deterioration
-nFactor = 0;                        % elastic stiffness amplification factor
+periodDiff = 1;
+minDiff = 1e-3;
+while abs(periodDiff) > minDiff
+    %% Define springs
+    K0 = resultsELF.designStiffness;    % elastic stiffness
+    as = 0.04;                          % strain hardening ratio
+    M_y = zeros(nStories,1);            % effective yield strength
+    Lambda = 8;                         % Cyclic deterioration parameter
+    c = 1;                              % rate of deterioration
+    theta_p = zeros(nStories,1);        % pre-capping rotation
+    Res = 0.2;                          % residual strength ratio
+    D = 1.0;                            % rate of cyclic deterioration
+    nFactor = 0;                        % elastic stiffness amplification factor
 
-py_factor = 3;  % ratio of theta_p to theta_y
-theta_y = zeros(nStories,1);
-for i = 1:nStories
-    Solution = [-py_factor 1 0 ; 0 as*K0(i) 1 ; 1 0 -1/K0(i)]^-1 * [0 ; resultsELF.designStrength(i) ; 0];
-    theta_y(i) = Solution(1); % rotation at yield
-    theta_p(i) = Solution(2); % pre-capping rotation
-    M_y(i)     = Solution(3); % effective yield strength
-end
+    py_factor = 3;  % ratio of theta_p to theta_y
+    theta_y = zeros(nStories,1);
+    for i = 1:nStories
+        Solution = [-py_factor 1 0 ; 0 as*K0(i) 1 ; 1 0 -1/K0(i)]^-1 * [0 ; resultsELF.designStrength(i) ; 0];
+        theta_y(i) = Solution(1); % rotation at yield
+        theta_p(i) = Solution(2); % pre-capping rotation
+        M_y(i)     = Solution(3); % effective yield strength
+    end
 
-theta_pc = 4*theta_p;                       % post-capping rotation
-theta_u = theta_y + theta_p + 2/3*theta_pc; % ultimate rotation capacity
+    theta_pc = 4*theta_p;                       % post-capping rotation
+    theta_u = theta_y + theta_p + 2/3*theta_pc; % ultimate rotation capacity
 
-bldg.storySpringDefinition = cell(nStories,1);
-for i = 1:nStories
-    bldg.storySpringDefinition{i} = bilinearMaterialDefinition(i,K0(i),as,M_y(i),Lambda,c,theta_p(i),theta_pc(i),Res,theta_u(i),D,nFactor);
+    bldg.storySpringDefinition = cell(nStories,1);
+    for i = 1:nStories
+        bldg.storySpringDefinition{i} = bilinearMaterialDefinition(i,K0(i),as,M_y(i),Lambda,c,theta_p(i),theta_pc(i),Res,theta_u(i),D,nFactor);
+    end
+
+    eigenvals = bldg.eigenvalues();
+    calculatedPeriod = (eigenvals(1)/(2*pi))^-1;
+    prevDiff = periodDiff;
+    periodDiff = bldg.fundamentalPeriod - calculatedPeriod;
+    bldg.fundamentalPeriod = calculatedPeriod;
+    resultsELF = bldg.ELFdesign;
+    if prevDiff == periodDiff
+        break
+    end
 end
 
 %% Response History Analysis
