@@ -3,6 +3,7 @@
 
 tic
 clear; close all; clc;
+addpath('../');
 addpath('../UniaxialMaterialAnalysis');
 
 %% Define Building
@@ -19,10 +20,10 @@ storyArea = 90*90*ones(1,nStories);             % Story areas (ft^2)
 bldg.storyMass = (storyDL .* storyArea)/bldg.g; % Story masses (kslug)
 
 bldg.seismicDesignCategory = 'Dmax';
-bldg.responseModificationCoefficient = 8;
-bldg.deflectionAmplificationFactor = 5.5;
+bldg.respModCoeff = 8;
+bldg.deflAmplFact = 5.5;
 bldg.overstrengthFactor = 3;
-bldg.importanceFactor = 1;
+bldg.impFactor = 1;
 
 %% Analysis Options
 
@@ -33,13 +34,26 @@ iterOption = 'period';      % Variable to use for convergence: 'period' or 'over
 minPeriodDiff = 1e-3;       % Tolerance for period convergence option
 
 % Incremental dynamic analysis options
-nMotions = 4;                                   % Number of ground motions to analyze
-SF2 = [0:.25:1.5, 2:0.5:6, 6.75:0.75:9, 10:12]; % Scale factors to use for each IDA curve
+nMotions = 1;                                   % Number of ground motions to analyze
+SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
 
 %% Design building
-resultsELF = bldg.ELFdesign();
+resultsELF = bldg.ELFanalysis();
+
+springGivens.as     = 0.04;              % strain hardening ratio
+springGivens.Lambda = 8;          % Cyclic deterioration parameter
+springGivens.c      = 1.0;               % rate of deterioration
+springGivens.Res    = 0.3;             % residual strength ratio
+springGivens.D      = 1.0;               % rate of cyclic deterioration
+springGivens.nFactor = 0;         % elastic stiffness amplification factor
+springGivens.C_yc   = 0.9;            % ratio of yield strength to capping strength
+springGivens.C_pcp  = 1;           % ratio of post-capping deflection to pre-capping deflection
+springGivens.C_upc  = 0.95;           % ratio of ultimate deflection to u_y + u_p + u_pc
+springGivens.minRelativeStiffness = false;
+springGivens.minRelativeStrength  = false;
 
 iterating = true;
+periodDiff = 1;
 while iterating == true
     %% Define springs
     spring = bldg.springDesign(resultsELF,springGivens);
@@ -57,7 +71,7 @@ while iterating == true
                 prevDiff = periodDiff;
                 periodDiff = bldg.fundamentalPeriod - calculatedPeriod;
                 bldg.fundamentalPeriod = calculatedPeriod;
-                resultsELF = bldg.ELFdesign;
+                resultsELF = bldg.ELFanalysis;
                 if prevDiff == periodDiff
                     iterating = false;
                 end
@@ -67,6 +81,34 @@ while iterating == true
         end
     end
 end
+
+%% Pushover analysis
+bldg.pushover_stepSize   = 0.001;
+bldg.pushover_maxDrift   = 100;
+resultsPushover = bldg.pushover(resultsELF.storyForce,'TargetPostPeakRatio',0.75);
+
+peakShear = max(resultsPushover.baseShear);
+peakShearIndex = resultsPushover.baseShear == peakShear;
+
+postPeakIndex = resultsPushover.roofDrift > resultsPushover.roofDrift(peakShearIndex);
+
+peakShear80 = 0.8*peakShear;
+peakShear80Index = find(postPeakIndex & (resultsPushover.baseShear < peakShear80),1);
+
+figure
+hold on
+plot(resultsPushover.roofDrift,resultsPushover.baseShear,'-')
+grid on
+grid minor
+axis manual
+ax = gca;
+noteText = sprintf('80%% Peak Shear = %g',peakShear80);
+text(resultsPushover.roofDrift(peakShear80Index),1.1*peakShear80,noteText)
+plot([0 ax.XLim(2)],[peakShear80 peakShear80],'k-')
+xlabel('Roof drift')
+ylabel('Base shear')
+title('P-Delta for Roof')
+
 
 %% Incremental Dynamic Analysis
 load('ground_motions.mat');
@@ -89,17 +131,17 @@ for i = 1:nMotions %length(ground_motions)
 
     % Vary scale factor
 
-    maxDrift = zeros(length(SF2),1);
+    maxDriftRatio = zeros(length(SF2),1);
     parfor j = 1:length(SF2)
         if verbose
             fprintf('Calculating IDA point for %s, SF2 = %g\n',ground_motions(i).ID,SF2(j));
         end
         SF = SF1*SF2(j);
         results{i,j} = bldg.responseHistory(gmfile,dt,SF,tend,ground_motions(i).ID,j);
-        maxDrift(j) = max(max(abs(results{i,j}.storyDrift))./bldg.storyHeight);
+        maxDriftRatio(j) = max(max(abs(results{i,j}.storyDrift))./bldg.storyHeight);
     end
 
-    plot(maxDrift,ST,'o-')
+    plot(maxDriftRatio,ST,'o-')
     legendentries{i} = ground_motions(i).ID;
 
     if bldg.deleteFilesAfterAnalysis
@@ -125,7 +167,7 @@ for i = 1:nStories
     materialDefinition = bldg.storySpringDefinition{i};
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
-    plotBackboneCurve(materialDefinition,defl_u(i),false)
+    plotBackboneCurve(materialDefinition,spring.defl_u(i),false)
     title(sprintf('Backbone curve for story %i',i))
     xlabel('Deflection (ft)')
     ylabel('Force (kip)')
@@ -133,5 +175,6 @@ for i = 1:nStories
 end
 
 rmpath('../UniaxialMaterialAnalysis');
+rmpath('../')
 
 toc
