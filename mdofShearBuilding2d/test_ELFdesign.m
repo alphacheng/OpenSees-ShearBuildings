@@ -27,53 +27,44 @@ bldg.importanceFactor = 1;
 %% Analysis Options
 
 % Equivalent lateral force options
+iterate = false;             % Select whether to do iteration
+iterOption = 'period';      % Variable to use for convergence: 'period' or 'overstrength'
+
 minPeriodDiff = 1e-3;       % Tolerance for period convergence option
 
 % Incremental dynamic analysis options
-nMotions = 6;                                   % Number of ground motions to analyze
+nMotions = 4;                                   % Number of ground motions to analyze
 SF2 = [0:.25:1.5, 2:0.5:6, 6.75:0.75:9, 10:12]; % Scale factors to use for each IDA curve
 
 %% Design building
 resultsELF = bldg.ELFdesign();
 
-periodDiff = 1;
-while abs(periodDiff) > minPeriodDiff
+iterating = true;
+while iterating == true
     %% Define springs
-    K0 = resultsELF.designStiffness;    % elastic stiffness
-    as = 0.04;                          % strain hardening ratio
-    V_y = zeros(nStories,1);            % effective yield strength
-    Lambda = 8;                         % Cyclic deterioration parameter
-    c = 1;                              % rate of deterioration
-    delta_p = zeros(nStories,1);        % pre-capping deflection
-    Res = 0.2;                          % residual strength ratio
-    D = 1.0;                            % rate of cyclic deterioration
-    nFactor = 0;                        % elastic stiffness amplification factor
+    spring = bldg.springDesign(resultsELF,springGivens);
 
-    py_factor = 4;  % ratio of delta_p to delta_y
-    delta_y = zeros(nStories,1);
-    for i = 1:nStories
-        Solution = [-py_factor 1 0 ; 0 as*K0(i) 1 ; 1 0 -1/K0(i)]^-1 * [0 ; resultsELF.designStrength(i) ; 0];
-        delta_y(i) = Solution(1); % deflection at yield
-        delta_p(i) = Solution(2); % pre-capping deflection
-        V_y(i)     = Solution(3); % effective yield strength
+    bldg.storySpringDefinition = spring.definition;
+
+    if ~iterate
+        iterating = false;
     end
-
-    delta_pc = delta_p;                       % post-capping deflection
-    delta_u = delta_y + delta_p + 4/3*delta_pc; % ultimate deflection capacity
-
-    bldg.storySpringDefinition = cell(nStories,1);
-    for i = 1:nStories
-        bldg.storySpringDefinition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda,c,delta_p(i),delta_pc(i),Res,delta_u(i),D,nFactor);
-    end
-
-    eigenvals = bldg.eigenvalues();
-    calculatedPeriod = (eigenvals(1)/(2*pi))^-1;
-    prevDiff = periodDiff;
-    periodDiff = bldg.fundamentalPeriod - calculatedPeriod;
-    bldg.fundamentalPeriod = calculatedPeriod;
-    resultsELF = bldg.ELFdesign;
-    if prevDiff == periodDiff
-        break
+    if iterate
+        switch lower(iterOption)
+            case 'period'
+                eigenvals = bldg.eigenvalues();
+                calculatedPeriod = (eigenvals(1)/(2*pi))^-1;
+                prevDiff = periodDiff;
+                periodDiff = bldg.fundamentalPeriod - calculatedPeriod;
+                bldg.fundamentalPeriod = calculatedPeriod;
+                resultsELF = bldg.ELFdesign;
+                if prevDiff == periodDiff
+                    iterating = false;
+                end
+            case 'overstrength'
+                fprintf('Not yet implemented')
+                iterating = false;
+        end
     end
 end
 
@@ -134,7 +125,7 @@ for i = 1:nStories
     materialDefinition = bldg.storySpringDefinition{i};
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
-    plotBackboneCurve(materialDefinition,delta_u(i),false)
+    plotBackboneCurve(materialDefinition,defl_u(i),false)
     title(sprintf('Backbone curve for story %i',i))
     xlabel('Deflection (ft)')
     ylabel('Force (kip)')

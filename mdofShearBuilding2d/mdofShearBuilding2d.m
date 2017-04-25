@@ -352,7 +352,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     filename_output_def,filename_output_force);
             end
         end %function:responseHistory
-        function results = ELFdesign(obj)
+        function results = ELFanalysis(obj)
             %% Equivalent Lateral Force procedure (ASCE 7-10)
 
             results = struct;
@@ -392,29 +392,55 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             verticalDistributionFactor = (obj.storyMass*obj.g .* obj.storyHeight.^k)/sum(obj.storyMass*obj.g .* obj.storyHeight.^k);
 
-            results.designStoryForce = verticalDistributionFactor*baseShear;
-            results.designStoryShear = zeros(1,obj.nStories);
+            results.storyForce = verticalDistributionFactor*baseShear;
+            results.storyShear = zeros(1,obj.nStories);
             for i = 1:obj.nStories
-                results.designStoryShear(i) = sum(results.designStoryForce(i:end));
+                results.storyShear(i) = sum(results.storyForce(i:end));
             end
 
-            results.designStoryDrift = zeros(1,obj.nStories);
+            results.allowableDrift = zeros(1,obj.nStories);
             for i = 1:obj.nStories
-                results.designStoryDrift(i) = 0.020*sum(obj.storyHeight(1:i));
+                results.allowableDrift(i) = 0.020*sum(obj.storyHeight(1:i));
             end
 
-            results.designStiffness = zeros(1,obj.nStories);
-            results.designStiffness(1) = obj.deflectionAmplificationFactor*results.designStoryShear(1)/(obj.importanceFactor*results.designStoryDrift(1));
+        end %function:ELFanalysis
+
+        function spring = springDesign(obj,analysisResults,springGivens)
+            %% Story spring design
+
+            spring = struct;
+
+            spring.designStiffness = zeros(1,obj.nStories);
+            spring.designStiffness(1) = obj.deflectionAmplificationFactor*analysisResults.storyShear(1)/(obj.importanceFactor*analysisResults.allowableDrift(1));
             for i = 2:obj.nStories
-                results.designStiffness(i) = results.designStoryShear(i)/(results.designStoryDrift(i)*obj.importanceFactor/obj.deflectionAmplificationFactor + results.designStoryShear(i-1)/results.designStiffness(i-1));
+                spring.designStiffness(i) = analysisResults.storyShear(i)/(analysisResults.allowableDrift(i)*obj.importanceFactor/obj.deflectionAmplificationFactor + analysisResults.storyShear(i-1)/spring.designStiffness(i-1));
             end
 
-            results.designStrength  = results.designStoryShear*obj.overstrengthFactor;
+            spring.designStrength  = analysisResults.storyShear*obj.overstrengthFactor;
 
+            K0      = resultsELF.designStiffness;   % elastic stiffness
+            as      = springGivens.as;              % strain hardening ratio
+            Lambda  = springGivens.Lambda;          % Cyclic deterioration parameter
+            c       = springGivens.c;               % rate of deterioration
+            Res     = springGivens.Res;             % residual strength ratio
+            D       = springGivens.D;               % rate of cyclic deterioration
+            nFactor = springGivens.nFactor;         % elastic stiffness amplification factor
+            C_yc    = springGivens.C_yc;            % ratio of yield strength to capping strength
 
+            V_c = resultsELF.designStrength;        % strength at capping
+            V_y = C_yc*V_c;                         % effective yield strength
+            defl_y = V_y./K0;                       % deflection at yield
+            defl_p = (V_c-V_y)./(as*K0);            % pre-capping deflection
 
-        end %function:equivalentLateralForceDesign
+            defl_pc = defl_p;                       % post-capping deflection
+            defl_u = defl_y + defl_p + 4/3*defl_pc; % ultimate deflection capacity
 
+            spring.definition = cell(nStories,1);
+            for i = 1:nStories
+                spring.definition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda,c,defl_p(i),defl_pc(i),Res,defl_u(i),D,nFactor);
+            end
+
+        end %function:springDesign
     end %methods
 end %classdef:mdofShearBuilding2d
 
