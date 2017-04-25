@@ -24,9 +24,9 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         storyHeight
 
         seismicDesignCategory
-        importanceFactor
-        responseModificationCoefficient
-        deflectionAmplificationFactor
+        impFactor
+        respModCoeff
+        deflAmplFact
         overstrengthFactor
 
     end
@@ -376,11 +376,11 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 obj.fundamentalPeriod = Cu*approxFundamentalPeriod;
             end
 
-            maxSeismicResponseCoefficient = SD1/(obj.fundamentalPeriod*obj.responseModificationCoefficient/obj.importanceFactor);
-            results.seismicResponseCoefficient = min(SDS/(obj.responseModificationCoefficient/obj.importanceFactor),maxSeismicResponseCoefficient);
+            maxSeismicResponseCoefficient = SD1/(obj.fundamentalPeriod*obj.respModCoeff/obj.impFactor);
+            results.seismicResponseCoefficient = min(SDS/(obj.respModCoeff/obj.impFactor),maxSeismicResponseCoefficient);
 
             seismicWeight = sum(obj.storyMass)*obj.g;
-            baseShear = seismicWeight*results.seismicResponseCoefficient;
+            results.baseShear = seismicWeight*results.seismicResponseCoefficient;
 
             if obj.fundamentalPeriod <= 0.5
                 k = 1;
@@ -392,7 +392,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             verticalDistributionFactor = (obj.storyMass*obj.g .* obj.storyHeight.^k)/sum(obj.storyMass*obj.g .* obj.storyHeight.^k);
 
-            results.storyForce = verticalDistributionFactor*baseShear;
+            results.storyForce = verticalDistributionFactor*results.baseShear;
             results.storyShear = zeros(1,obj.nStories);
             for i = 1:obj.nStories
                 results.storyShear(i) = sum(results.storyForce(i:end));
@@ -410,15 +410,11 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             spring = struct;
 
-            spring.designStiffness = zeros(1,obj.nStories);
-            spring.designStiffness(1) = obj.deflectionAmplificationFactor*analysisResults.storyShear(1)/(obj.importanceFactor*analysisResults.allowableDrift(1));
-            for i = 2:obj.nStories
-                spring.designStiffness(i) = analysisResults.storyShear(i)/(analysisResults.allowableDrift(i)*obj.importanceFactor/obj.deflectionAmplificationFactor + analysisResults.storyShear(i-1)/spring.designStiffness(i-1));
-            end
+            spring.designStiffness = obj.deflAmplFact*analysisResults.storyShear./(obj.impFactor*analysisResults.allowableDrift);
 
             spring.designStrength  = analysisResults.storyShear*obj.overstrengthFactor;
 
-            K0      = resultsELF.designStiffness;   % elastic stiffness
+            K0      = spring.designStiffness;       % elastic stiffness
             as      = springGivens.as;              % strain hardening ratio
             Lambda  = springGivens.Lambda;          % Cyclic deterioration parameter
             c       = springGivens.c;               % rate of deterioration
@@ -426,18 +422,20 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             D       = springGivens.D;               % rate of cyclic deterioration
             nFactor = springGivens.nFactor;         % elastic stiffness amplification factor
             C_yc    = springGivens.C_yc;            % ratio of yield strength to capping strength
+            C_pcp   = springGivens.C_pcp;           % ratio of post-capping deflection to pre-capping deflection
+            C_upc   = springGivens.C_upc;           % ratio of ultimate deflection to u_y + u_p + u_pc
 
-            V_c = resultsELF.designStrength;        % strength at capping
+            V_c = spring.designStrength;            % strength at capping
             V_y = C_yc*V_c;                         % effective yield strength
             defl_y = V_y./K0;                       % deflection at yield
             defl_p = (V_c-V_y)./(as*K0);            % pre-capping deflection
 
-            defl_pc = defl_p;                       % post-capping deflection
-            defl_u = defl_y + defl_p + 4/3*defl_pc; % ultimate deflection capacity
+            defl_pc = C_pcp*defl_p;                 % post-capping deflection
+            spring.defl_u  = C_upc*(defl_y + defl_p + defl_pc);     % ultimate deflection capacity
 
             spring.definition = cell(obj.nStories,1);
             for i = 1:obj.nStories
-                spring.definition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda,c,defl_p(i),defl_pc(i),Res,defl_u(i),D,nFactor);
+                spring.definition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda,c,defl_p(i),defl_pc(i),Res,spring.defl_u(i),D,nFactor);
             end
 
         end %function:springDesign
