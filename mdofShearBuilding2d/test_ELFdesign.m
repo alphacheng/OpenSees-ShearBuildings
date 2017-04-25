@@ -3,8 +3,12 @@
 
 tic
 clear; close all; clc;
-addpath('../');
-addpath('../UniaxialMaterialAnalysis');
+neededPaths={'../'; ...
+             '../UniaxialMaterialAnalysis'};
+
+for i = 1:length(neededPaths)
+    addpath(neededPaths{i})
+end
 
 %% Define Building
 nStories = 3;
@@ -26,6 +30,8 @@ bldg.overstrengthFactor = 3;
 bldg.impFactor = 1;
 
 %% Analysis Options
+runPushover = true;     % Select whether to run pushover
+runIDA      = false;    % Select whether to run IDA
 
 % Equivalent lateral force options
 iterate = false;             % Select whether to do iteration
@@ -83,6 +89,7 @@ while iterating == true
 end
 
 %% Pushover analysis
+if runPushover
 bldg.pushover_stepSize   = 0.001;
 bldg.pushover_maxDrift   = 100;
 resultsPushover = bldg.pushover(resultsELF.storyForce,'TargetPostPeakRatio',0.75);
@@ -107,10 +114,11 @@ text(resultsPushover.roofDrift(peakShear80Index),1.1*peakShear80,noteText)
 plot([0 ax.XLim(2)],[peakShear80 peakShear80],'k-')
 xlabel('Roof drift')
 ylabel('Base shear')
-title('P-Delta for Roof')
-
+title('Pushover analysis')
+end
 
 %% Incremental Dynamic Analysis
+if runIDA
 load('ground_motions.mat');
 SMT = FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
 ST  = SMT*SF2;
@@ -157,6 +165,7 @@ legend(legendentries)
 
 % Plot sample response history
 plotSampleResponse(results{1,5})
+end
 
 % Plot backbone curves
 figure
@@ -174,7 +183,8 @@ for i = 1:nStories
     grid on
 end
 
-rmpath('../UniaxialMaterialAnalysis');
-rmpath('../')
+for i = 1:length(neededPaths)
+    rmpath(neededPaths{i})
+end
 
 toc
