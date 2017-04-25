@@ -435,8 +435,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             defl_pc = defl_p;                       % post-capping deflection
             defl_u = defl_y + defl_p + 4/3*defl_pc; % ultimate deflection capacity
 
-            spring.definition = cell(nStories,1);
-            for i = 1:nStories
+            spring.definition = cell(obj.nStories,1);
+            for i = 1:obj.nStories
                 spring.definition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda,c,defl_p(i),defl_pc(i),Res,defl_u(i),D,nFactor);
             end
 
