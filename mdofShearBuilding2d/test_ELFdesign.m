@@ -43,17 +43,27 @@ springGivens.C_yc    = 0.90;    % ratio of yield strength to capping strength
 springGivens.C_pcp   = 1.00;    % ratio of post-capping deflection to pre-capping deflection
 springGivens.C_upc   = 0.95;    % ratio of ultimate deflection to u_y + u_p + u_pc
 
+% Units -- used for descriptions only
+units.force = 'kip';
+units.mass  = 'kslug';
+units.length= 'ft';
+units.time  = 'sec';
+
 %##############################################################################%
 %% Analysis Options
-verbose     = true ;    % Verbose output
-runPushover = true ;    % Select whether to run pushover
-runIDA      = false;    % Select whether to run IDA
+verbose     = true ;    % Toggle verbose output
+runPushover = true ;    % Toggle pushover analysis
+runIDA      = false;    % Toggle IDA
 
 % Equivalent lateral force options
 iterate = false;             % Select whether to do iteration
 iterOption = 'period';      % Variable to use for convergence: 'period' or 'overstrength'
 
 minPeriodDiff = 1e-3;       % Tolerance for period convergence option
+
+% Pushover analysis options
+bldg.pushover_stepSize   = 0.001;
+bldg.pushover_maxDrift   = 100;
 
 % Incremental dynamic analysis options
 nMotions = 01;                              % Number of ground motions to analyze
@@ -62,6 +72,7 @@ SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA 
 %##############################################################################%
 %% Equivalent lateral force procedure
 
+if verbose; fprintf('Running equivalent lateral force procedure...\n'); end
 resultsELF = bldg.ELFanalysis();
 
 iterating = true;
@@ -97,9 +108,11 @@ end
 %##############################################################################%
 %% Pushover analysis
 if runPushover
+if verbose
+    fprintf('Running pushover analysis...\n');
+    pushover_tic = tic;
+end
 
-bldg.pushover_stepSize   = 0.001;
-bldg.pushover_maxDrift   = 100;
 resultsPushover = bldg.pushover(resultsELF.storyForce,'TargetPostPeakRatio',0.75);
 
 peakShear = max(resultsPushover.baseShear);
@@ -115,20 +128,28 @@ hold on
 plot(resultsPushover.roofDrift,resultsPushover.baseShear,'-')
 grid on
 grid minor
-axis manual
-ax = gca;
-noteText = sprintf('80%% Peak Shear = %g',peakShear80);
+
+noteText = sprintf('80%% Peak Shear = %g %s',peakShear80,units.force);
 text(resultsPushover.roofDrift(peakShear80Index),1.1*peakShear80,noteText)
-plot([0 ax.XLim(2)],[peakShear80 peakShear80],'k-')
-xlabel('Roof drift')
-ylabel('Base shear')
+xlabel(sprintf('Roof drift (%s)',units.length))
+ylabel(sprintf('Base shear (%s)',units.force))
 title('Pushover analysis')
+
+if verbose
+    pushover_time = toc(pushover_tic);
+    fprintf('Pushover analysis took %g seconds.',pushover_time);
+end
 
 end
 
 %##############################################################################%
 %% Incremental Dynamic Analysis
 if runIDA
+
+if verbose
+    fprintf('Running incremental dynamic analysis...\n');
+    ida_tic = tic;
+end
 
 load('ground_motions.mat');
 SMT = FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
@@ -175,6 +196,11 @@ legend(legendentries)
 % Plot sample response history
 plotSampleResponse(results{1,5})
 
+if verbose
+    ida_time = toc(ida_tic);
+    fprintf('Incremental dynamic analysis took %g seconds.',ida_time);
+end
+
 end
 
 %##############################################################################%
@@ -189,8 +215,8 @@ for i = 1:nStories
     materialDefinition(matTagLoc(1)) = '1';
     plotBackboneCurve(materialDefinition,spring.defl_u(i),false)
     title(sprintf('Backbone curve for story %i',i))
-    xlabel('Deflection (ft)')
-    ylabel('Force (kip)')
+    xlabel(sprintf('Deflection (%s)',units.length))
+    ylabel(sprintf('Force (%s)',units.force))
     grid on
 end
 
