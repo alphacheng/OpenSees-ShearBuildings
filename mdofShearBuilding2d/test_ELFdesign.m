@@ -1,6 +1,9 @@
 % test_ELFdesign.m
 % Units: kslug, kip, ft, sec
 
+%##############################################################################%
+%% Startup
+
 tic
 clear; close all; clc;
 neededPaths={'../'; ...
@@ -10,12 +13,13 @@ for i = 1:length(neededPaths)
     addpath(neededPaths{i})
 end
 
+%##############################################################################%
 %% Define Building
 nStories = 3;
 bldg = mdofShearBuilding2d(nStories);
 bldg.echoOpenSeesOutput = false;
 bldg.deleteFilesAfterAnalysis = true;
-verbose = true;                                 % Verbose output (bool)
+
 bldg.g = 32.2;                                  % Acceleration due to gravity (ft/s^2)
 
 bldg.storyHeight = [20 15 15];                  % Story heights (ft)
@@ -29,8 +33,20 @@ bldg.deflAmplFact = 5.5;
 bldg.overstrengthFactor = 3;
 bldg.impFactor = 1;
 
+springGivens.as      = 0.04;    % strain hardening ratio
+springGivens.Lambda  = 8.00;    % Cyclic deterioration parameter
+springGivens.c       = 1.00;    % rate of deterioration
+springGivens.Res     = 0.30;    % residual strength ratio
+springGivens.D       = 1.00;    % rate of cyclic deterioration
+springGivens.nFactor = 0.00;    % elastic stiffness amplification factor
+springGivens.C_yc    = 0.90;    % ratio of yield strength to capping strength
+springGivens.C_pcp   = 1.00;    % ratio of post-capping deflection to pre-capping deflection
+springGivens.C_upc   = 0.95;    % ratio of ultimate deflection to u_y + u_p + u_pc
+
+%##############################################################################%
 %% Analysis Options
-runPushover = true;     % Select whether to run pushover
+verbose     = true ;    % Verbose output
+runPushover = true ;    % Select whether to run pushover
 runIDA      = false;    % Select whether to run IDA
 
 % Equivalent lateral force options
@@ -40,23 +56,13 @@ iterOption = 'period';      % Variable to use for convergence: 'period' or 'over
 minPeriodDiff = 1e-3;       % Tolerance for period convergence option
 
 % Incremental dynamic analysis options
-nMotions = 1;                                   % Number of ground motions to analyze
+nMotions = 01;                              % Number of ground motions to analyze
 SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
 
-%% Design building
-resultsELF = bldg.ELFanalysis();
+%##############################################################################%
+%% Equivalent lateral force procedure
 
-springGivens.as     = 0.04;              % strain hardening ratio
-springGivens.Lambda = 8;          % Cyclic deterioration parameter
-springGivens.c      = 1.0;               % rate of deterioration
-springGivens.Res    = 0.3;             % residual strength ratio
-springGivens.D      = 1.0;               % rate of cyclic deterioration
-springGivens.nFactor = 0;         % elastic stiffness amplification factor
-springGivens.C_yc   = 0.9;            % ratio of yield strength to capping strength
-springGivens.C_pcp  = 1;           % ratio of post-capping deflection to pre-capping deflection
-springGivens.C_upc  = 0.95;           % ratio of ultimate deflection to u_y + u_p + u_pc
-springGivens.minRelativeStiffness = false;
-springGivens.minRelativeStrength  = false;
+resultsELF = bldg.ELFanalysis();
 
 iterating = true;
 periodDiff = 1;
@@ -88,8 +94,10 @@ while iterating == true
     end
 end
 
+%##############################################################################%
 %% Pushover analysis
 if runPushover
+
 bldg.pushover_stepSize   = 0.001;
 bldg.pushover_maxDrift   = 100;
 resultsPushover = bldg.pushover(resultsELF.storyForce,'TargetPostPeakRatio',0.75);
@@ -115,10 +123,13 @@ plot([0 ax.XLim(2)],[peakShear80 peakShear80],'k-')
 xlabel('Roof drift')
 ylabel('Base shear')
 title('Pushover analysis')
+
 end
 
+%##############################################################################%
 %% Incremental Dynamic Analysis
 if runIDA
+
 load('ground_motions.mat');
 SMT = FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
 ST  = SMT*SF2;
@@ -126,7 +137,7 @@ figure
 hold on
 legendentries = cell(nMotions,1);
 results = cell(nMotions,length(SF2));
-for i = 1:nMotions %length(ground_motions)
+for i = 1:nMotions
     gmfile = bldg.scratchFile(sprintf('acc%s.acc',ground_motions(i).ID));
     gmfid = fopen(gmfile,'w+');
     for k = 1:ground_motions(i).numPoints
@@ -138,7 +149,6 @@ for i = 1:nMotions %length(ground_motions)
     tend    = max(ground_motions(i).time) + 5;
 
     % Vary scale factor
-
     maxDriftRatio = zeros(length(SF2),1);
     parfor j = 1:length(SF2)
         if verbose
@@ -157,7 +167,6 @@ for i = 1:nMotions %length(ground_motions)
     end
 end
 
-
 grid on
 xlabel('Maximum story drift ratio')
 ylabel('Ground motion intensity, S_T (g)')
@@ -165,9 +174,11 @@ legend(legendentries)
 
 % Plot sample response history
 plotSampleResponse(results{1,5})
+
 end
 
-% Plot backbone curves
+%##############################################################################%
+%% Plot backbone curves
 figure
 hold on
 backbone_ax = cell(nStories,1);
@@ -182,6 +193,9 @@ for i = 1:nStories
     ylabel('Force (kip)')
     grid on
 end
+
+%##############################################################################%
+%% Cleanup
 
 for i = 1:length(neededPaths)
     rmpath(neededPaths{i})
