@@ -25,15 +25,19 @@ bldg.overstrengthFactor = 3;
 bldg.importanceFactor = 1;
 
 %% Analysis Options
-nMotions = 6;                                   % Number of IDA curves to calculate
-SF2 = [0:.25:1.5, 2:0.5:6, 6.75:0.75:9, 10:12]; % Scale factors to vary along each IDA curve; length(SF2) = numPoints of each curve
+
+% Equivalent lateral force options
+minPeriodDiff = 1e-3;       % Tolerance for period convergence option
+
+% Incremental dynamic analysis options
+nMotions = 6;                                   % Number of ground motions to analyze
+SF2 = [0:.25:1.5, 2:0.5:6, 6.75:0.75:9, 10:12]; % Scale factors to use for each IDA curve
 
 %% Design building
 resultsELF = bldg.ELFdesign();
 
 periodDiff = 1;
-minDiff = 1e-3;
-while abs(periodDiff) > minDiff
+while abs(periodDiff) > minPeriodDiff
     %% Define springs
     K0 = resultsELF.designStiffness;    % elastic stiffness
     as = 0.04;                          % strain hardening ratio
