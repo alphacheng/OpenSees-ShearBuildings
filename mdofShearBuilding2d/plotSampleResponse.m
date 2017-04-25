@@ -13,7 +13,7 @@ grid on
 grid minor
 xlabel('Time (s)')
 ylabel('Acceleration (ft/s^2)')
-titleText = sprintf('Input Ground Motion (GM: %s, Index: %i)',results.gmID,results.indexNum);
+titleText = sprintf('Input Ground Motion (GM: %s, SF: %g)',results.gmID,results.SF);
 title(titleText)
 
 subplot(212)
