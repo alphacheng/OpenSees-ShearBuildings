@@ -77,7 +77,7 @@ while abs(periodDiff) > minPeriodDiff
     end
 end
 
-%% Response History Analysis
+%% Incremental Dynamic Analysis
 load('ground_motions.mat');
 SMT = FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
 ST  = SMT*SF2;
@@ -128,12 +128,17 @@ plotSampleResponse(results{1,5})
 % Plot backbone curves
 figure
 hold on
+backbone_ax = cell(nStories,1);
 for i = 1:nStories
-    subplot(nStories,1,i)
+    backbone_ax{i} = subplot(nStories,1,i);
     materialDefinition = bldg.storySpringDefinition{i};
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
     plotBackboneCurve(materialDefinition,theta_u(i),false)
+    title(sprintf('Backbone curve for story %i',i))
+    xlabel('Deflection (ft)')
+    ylabel('Force (kip)')
+    grid on
 end
 
 rmpath('../UniaxialMaterialAnalysis');
