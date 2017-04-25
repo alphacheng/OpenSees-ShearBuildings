@@ -255,6 +255,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             results = struct;
             results.gmID = gmID;
             results.indexNum = indexNum;
+            results.SF = SF;
 
             % Filenames
             filename_input              = obj.scratchFile(sprintf('mdofShearBuilding2d_input_%s_%i.tcl',gmID,indexNum));
