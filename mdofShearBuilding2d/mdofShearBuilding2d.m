@@ -391,7 +391,12 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             verticalDistributionFactor = (obj.storyMass*obj.g .* obj.storyHeight.^k)/sum(obj.storyMass*obj.g .* obj.storyHeight.^k);
 
-            results.designStoryShear = verticalDistributionFactor*baseShear;
+            results.designStoryForce = verticalDistributionFactor*baseShear;
+            results.designStoryShear = zeros(1,obj.nStories);
+            for i = 1:obj.nStories
+                results.designStoryShear(i) = sum(results.designStoryForce(i:end));
+            end
+
             results.designStoryDrift = zeros(1,obj.nStories);
             for i = 1:obj.nStories
                 results.designStoryDrift(i) = 0.020*sum(obj.storyHeight(1:i));
