@@ -41,29 +41,29 @@ while abs(periodDiff) > minPeriodDiff
     %% Define springs
     K0 = resultsELF.designStiffness;    % elastic stiffness
     as = 0.04;                          % strain hardening ratio
-    M_y = zeros(nStories,1);            % effective yield strength
+    V_y = zeros(nStories,1);            % effective yield strength
     Lambda = 8;                         % Cyclic deterioration parameter
     c = 1;                              % rate of deterioration
-    theta_p = zeros(nStories,1);        % pre-capping rotation
+    delta_p = zeros(nStories,1);        % pre-capping deflection
     Res = 0.2;                          % residual strength ratio
     D = 1.0;                            % rate of cyclic deterioration
     nFactor = 0;                        % elastic stiffness amplification factor
 
-    py_factor = 4;  % ratio of theta_p to theta_y
-    theta_y = zeros(nStories,1);
+    py_factor = 4;  % ratio of delta_p to delta_y
+    delta_y = zeros(nStories,1);
     for i = 1:nStories
         Solution = [-py_factor 1 0 ; 0 as*K0(i) 1 ; 1 0 -1/K0(i)]^-1 * [0 ; resultsELF.designStrength(i) ; 0];
-        theta_y(i) = Solution(1); % rotation at yield
-        theta_p(i) = Solution(2); % pre-capping rotation
-        M_y(i)     = Solution(3); % effective yield strength
+        delta_y(i) = Solution(1); % deflection at yield
+        delta_p(i) = Solution(2); % pre-capping deflection
+        V_y(i)     = Solution(3); % effective yield strength
     end
 
-    theta_pc = theta_p;                       % post-capping rotation
-    theta_u = theta_y + theta_p + 4/3*theta_pc; % ultimate rotation capacity
+    delta_pc = delta_p;                       % post-capping deflection
+    delta_u = delta_y + delta_p + 4/3*delta_pc; % ultimate deflection capacity
 
     bldg.storySpringDefinition = cell(nStories,1);
     for i = 1:nStories
-        bldg.storySpringDefinition{i} = bilinearMaterialDefinition(i,K0(i),as,M_y(i),Lambda,c,theta_p(i),theta_pc(i),Res,theta_u(i),D,nFactor);
+        bldg.storySpringDefinition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda,c,delta_p(i),delta_pc(i),Res,delta_u(i),D,nFactor);
     end
 
     eigenvals = bldg.eigenvalues();
@@ -134,7 +134,7 @@ for i = 1:nStories
     materialDefinition = bldg.storySpringDefinition{i};
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
-    plotBackboneCurve(materialDefinition,theta_u(i),false)
+    plotBackboneCurve(materialDefinition,delta_u(i),false)
     title(sprintf('Backbone curve for story %i',i))
     xlabel('Deflection (ft)')
     ylabel('Force (kip)')
