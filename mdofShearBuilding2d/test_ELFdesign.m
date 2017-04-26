@@ -53,7 +53,7 @@ units.time  = 'sec';
 %% Analysis Options
 verbose     = true ;    % Toggle verbose output
 runPushover = true ;    % Toggle pushover analysis
-runIDA      = false;    % Toggle IDA
+runIDA      = true;    % Toggle IDA
 
 % Equivalent lateral force options
 iterate = false;             % Select whether to do iteration
@@ -66,7 +66,7 @@ bldg.pushover_stepSize   = 0.001;
 bldg.pushover_maxDrift   = 100;
 
 % Incremental dynamic analysis options
-nMotions = 01;                              % Number of ground motions to analyze
+nMotions = 6;                              % Number of ground motions to analyze
 SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
 
 %##############################################################################%
@@ -119,9 +119,14 @@ peakShear = max(resultsPushover.baseShear);
 peakShearIndex = resultsPushover.baseShear == peakShear;
 
 postPeakIndex = resultsPushover.roofDrift > resultsPushover.roofDrift(peakShearIndex);
+postPeakShear = resultsPushover.baseShear(postPeakIndex);
+postPeakDrift = resultsPushover.roofDrift(postPeakIndex);
 
 peakShear80 = 0.8*peakShear;
-peakShear80Index = find(postPeakIndex & (resultsPushover.baseShear < peakShear80),1);
+peakShear80Drift = interp1(postPeakShear,postPeakDrift,peakShear80);
+
+fprintf('80%% Peak Shear = %g %s\n',peakShear80,units.force);
+fprintf('Drift at 80%% Peak Shear = %g %s\n',peakShear80Drift,units.length);
 
 figure
 hold on
@@ -129,15 +134,13 @@ plot(resultsPushover.roofDrift,resultsPushover.baseShear,'-')
 grid on
 grid minor
 
-noteText = sprintf('80%% Peak Shear = %g %s',peakShear80,units.force);
-text(resultsPushover.roofDrift(peakShear80Index),1.1*peakShear80,noteText)
 xlabel(sprintf('Roof drift (%s)',units.length))
 ylabel(sprintf('Base shear (%s)',units.force))
 title('Pushover analysis')
 
 if verbose
     pushover_time = toc(pushover_tic);
-    fprintf('Pushover analysis took %g seconds.',pushover_time);
+    fprintf('Pushover analysis took %g seconds.\n',pushover_time);
 end
 
 end
@@ -198,7 +201,7 @@ plotSampleResponse(results{1,5})
 
 if verbose
     ida_time = toc(ida_tic);
-    fprintf('Incremental dynamic analysis took %g seconds.',ida_time);
+    fprintf('Incremental dynamic analysis took %g seconds.\n',ida_time);
 end
 
 end
