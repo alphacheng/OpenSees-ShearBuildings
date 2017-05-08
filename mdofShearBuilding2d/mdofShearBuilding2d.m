@@ -84,7 +84,14 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
         %% Analyses
         function eigenvals = eigenvalues(obj)
-            %% Eigenvalue analysis
+            %% EIGENVALUES Eigenvalue analysis of system.
+            %
+            %   eigenvals = EIGENVALUES(obj) returns the eigenvalues of obj in
+            %       the array eigenvals. Note that the eigenvalues are equal to
+            %       the square of the circular natural frequencies, not the
+            %       frequencies themselves.
+            %
+
             filename_input = obj.scratchFile('mdofShearBuilding2d_input.tcl');
             filename_eigs  = obj.scratchFile('mdofShearBuilding2d_eigs.out');
 
@@ -118,8 +125,33 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             end
 
         end %function:eigenvalues
+
         function results = pushover(obj,F,type,varargin)
-            %% Pushover Analysis
+            %% PUSHOVER Perform a pushover analysis
+            %
+            %   results = PUSHOVER(obj,F,type,typeArg) performs a pushover
+            %       analysis with load distribution specified by F and end
+            %       condition defined by type and typeArg.
+            %
+            %   type accepts the following options:
+            %       targetDrift
+            %       targetPostPeakRatio
+            %
+            %   results has the following fields:
+            %
+            %   F                       Force ratios
+            %   targetDrift             Target drift for analysis
+            %   targetPostPeakRatio     Target post peak ratio
+            %   textOutput              Console output from OpenSees
+            %   exitStatus              Reports whether analysis was successful
+            %   totalDrift              Time history of total drift of stories
+            %   storyShear              Time history of story shears
+            %   storyDrift              Time history of story drifts
+            %   appliedStoryForce       Time history of applied forces
+            %   roofDrift               Time history of total roof drift
+            %   baseShear               Time history of base shear
+            %
+            
             assert(isnumeric(F) & isvectorsize(F,obj.nStories),...
                 'F should be a numeric verctor of length %i (number of stories)',obj.nStories);
             if iscolumn(F)
@@ -249,8 +281,30 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 delete(filename_input,filename_output_def,filename_output_force);
             end
         end %function:pushover
+
         function results = responseHistory(obj,groundMotionFilename,dt,SF,tend,gmID,indexNum)
-            %% Response History Analysis
+            %% RESPONSEHISTORY Perform response history analysis
+            %
+            %   results = RESPONSEHISTORY(obj,gmFile,dt,SF,tend,gmID,indexNum)
+            %       Returns the results of a response history analysis of obj
+            %       subject to ground motion stored in gmFile with timestep dt
+            %       scaled by SF. Analysis concludes at tend. gmID and indexNum
+            %       are used for incremental dynamic analyses.
+            %
+            %   results has the following fields:
+            %
+            %   gmID
+            %   indexNum
+            %   SF
+            %   textOutput
+            %   groundMotion
+            %   totalDrift
+            %   storyShear
+            %   storyDrift
+            %   roofDrift
+            %   baseShear
+            %
+
             % Initialize Results
             results = struct;
             results.gmID = gmID;
@@ -352,6 +406,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     filename_output_def,filename_output_force);
             end
         end %function:responseHistory
+
         function results = ELFanalysis(obj)
             %% Equivalent Lateral Force procedure (ASCE 7-10)
 
