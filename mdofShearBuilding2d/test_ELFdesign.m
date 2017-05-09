@@ -17,8 +17,6 @@ end
 %% Define Building
 nStories = 3;
 bldg = mdofShearBuilding2d(nStories);
-bldg.echoOpenSeesOutput = false;
-bldg.deleteFilesAfterAnalysis = true;
 
 bldg.g = 32.2;                                  % Acceleration due to gravity (ft/s^2)
 
@@ -41,7 +39,7 @@ springGivens.D       = 1.00;    % rate of cyclic deterioration
 springGivens.nFactor = 0.00;    % elastic stiffness amplification factor
 springGivens.C_yc    = 0.90;    % ratio of yield strength to capping strength
 springGivens.C_pcp   = 1.00;    % ratio of post-capping deflection to pre-capping deflection
-springGivens.C_upc   = 0.95;    % ratio of ultimate deflection to u_y + u_p + u_pc
+springGivens.C_upc   = 20.0;    % ratio of ultimate deflection to u_y + u_p + u_pc
 
 % Units -- used for descriptions only
 units.force = 'kip';
@@ -51,12 +49,15 @@ units.time  = 'sec';
 
 %##############################################################################%
 %% Analysis Options
+bldg.echoOpenSeesOutput = false;
+bldg.deleteFilesAfterAnalysis = true;
+
 verbose     = true ;    % Toggle verbose output
 runPushover = true ;    % Toggle pushover analysis
-runIDA      = true;    % Toggle IDA
+runIDA      = false;    % Toggle IDA
 
 % Equivalent lateral force options
-iterate = false;             % Select whether to do iteration
+iterate = true;             % Select whether to do iteration
 iterOption = 'period';      % Variable to use for convergence: 'period' or 'overstrength'
 
 minPeriodDiff = 1e-3;       % Tolerance for period convergence option
@@ -85,12 +86,11 @@ while iterating == true
 
     if ~iterate
         iterating = false;
-    end
-    if iterate
+    else
         switch lower(iterOption)
             case 'period'
                 eigenvals = bldg.eigenvalues();
-                calculatedPeriod = (eigenvals(1)/(2*pi))^-1;
+                calculatedPeriod = (sqrt(eigenvals(1))/(2*pi))^-1;
                 prevDiff = periodDiff;
                 periodDiff = bldg.fundamentalPeriod - calculatedPeriod;
                 bldg.fundamentalPeriod = calculatedPeriod;
@@ -113,7 +113,10 @@ if verbose
     pushover_tic = tic;
 end
 
-resultsPushover = bldg.pushover(resultsELF.storyForce,'TargetPostPeakRatio',0.75);
+[eigenvals,eigenvecs] = bldg.eigenvalues;
+F = bldg.storyMass' .* eigenvecs;
+
+resultsPushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
 
 peakShear = max(resultsPushover.baseShear);
 peakShearIndex = resultsPushover.baseShear == peakShear;
