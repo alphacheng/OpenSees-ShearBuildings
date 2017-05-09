@@ -498,15 +498,15 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             V_c = spring.designStrength;            % strength at capping
             V_y = C_yc*V_c;                         % effective yield strength
-            defl_y = V_y./K0;                       % deflection at yield
-            defl_p = (V_c-V_y)./(as*K0);            % pre-capping deflection
 
-            defl_pc = C_pcp*defl_p;                 % post-capping deflection
-            spring.defl_u  = C_upc*(defl_y + defl_p + defl_pc);     % ultimate deflection capacity
+            spring.defl_y = V_y./K0;                                % deflection at yield
+            spring.defl_p = (V_c-V_y)./(as*K0);                     % pre-capping deflection
+            spring.defl_pc = C_pcp*spring.defl_p;                          % post-capping deflection
+            spring.defl_u  = C_upc*(spring.defl_y + spring.defl_p + spring.defl_pc);     % ultimate deflection capacity
 
             spring.definition = cell(obj.nStories,1);
             for i = 1:obj.nStories
-                spring.definition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda,c,defl_p(i),defl_pc(i),Res,spring.defl_u(i),D,nFactor);
+                spring.definition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda,c,spring.defl_p(i),spring.defl_pc(i),Res,spring.defl_u(i),D,nFactor);
             end
 
         end %function:springDesign
