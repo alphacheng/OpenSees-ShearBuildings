@@ -57,8 +57,8 @@ runPushover = true ;    % Toggle pushover analysis
 runIDA      = false;    % Toggle IDA
 
 % Equivalent lateral force options
-iterate = true;             % Select whether to do iteration
-iterOption = 'overstrength';      % Variable to use for convergence: 'period' or 'overstrength'
+iterate = false;             % Select whether to do iteration
+iterOption = 'period';      % Variable to use for convergence: 'period' or 'overstrength'
 
 diffTol = 1e-3;             % Tolerance for iteration
 
@@ -131,23 +131,47 @@ peakShearIndex = resultsPushover.baseShear == peakShear;
 
 postPeakIndex = resultsPushover.roofDrift > resultsPushover.roofDrift(peakShearIndex);
 postPeakShear = resultsPushover.baseShear(postPeakIndex);
-postPeakDrift = resultsPushover.roofDrift(postPeakIndex);
+postPeakDrift = resultsPushover.totalDrift(postPeakIndex,:);
 
 peakShear80 = 0.8*peakShear;
 peakShear80Drift = interp1(postPeakShear,postPeakDrift,peakShear80);
 
+peakStoryDrift = resultsPushover.storyDrift(peakShearIndex,:);
+postPeakStoryDrift = resultsPushover.storyDrift(postPeakIndex,:);
+peak80StoryDrift = interp1(postPeakShear,postPeakStoryDrift,peakShear80);
+
+peakStoryDriftRatio   = peakStoryDrift./bldg.storyHeight;
+peak80StoryDriftRatio = peak80StoryDrift./bldg.storyHeight;
+
 fprintf('80%% Peak Shear = %g %s\n',peakShear80,units.force);
-fprintf('Drift at 80%% Peak Shear = %g %s\n',peakShear80Drift,units.length);
+fprintf('Roof drift at 80%% Peak Shear = %g %s\n',peakShear80Drift(bldg.nStories),units.length);
 
 figure
 hold on
 plot(resultsPushover.roofDrift,resultsPushover.baseShear,'-')
 grid on
 grid minor
-
 xlabel(sprintf('Roof drift (%s)',units.length))
 ylabel(sprintf('Base shear (%s)',units.force))
 title('Pushover analysis')
+
+figure
+subplot(1,2,1)
+barh(F/sum(F),0.1)
+grid on
+title('Pushover force distribution')
+ylabel('Story')
+subplot(1,2,2)
+hold on
+plot(peakStoryDriftRatio  ,1:bldg.nStories,'*-')
+plot(peak80StoryDriftRatio,1:bldg.nStories,'*-')
+grid on
+grid minor
+ylim([0.5 bldg.nStories+0.5])
+ylabel('Story')
+xlabel('Story Drift Ratio')
+title('Pushover story drifts')
+legend('V_{max}','V_{80}','Location','Southeast')
 
 if verbose
     pushover_time = toc(pushover_tic);
@@ -171,7 +195,7 @@ ST  = SMT*SF2;
 figure
 hold on
 legendentries = cell(nMotions,1);
-results = cell(nMotions,length(SF2));
+resultsIDA = cell(nMotions,length(SF2));
 for i = 1:nMotions
     gmfile = bldg.scratchFile(sprintf('acc%s.acc',ground_motions(i).ID));
     gmfid = fopen(gmfile,'w+');
@@ -190,8 +214,8 @@ for i = 1:nMotions
             fprintf('Calculating IDA point for %s, SF2 = %g\n',ground_motions(i).ID,SF2(j));
         end
         SF = SF1*SF2(j);
-        results{i,j} = bldg.responseHistory(gmfile,dt,SF,tend,ground_motions(i).ID,j);
-        maxDriftRatio(j) = max(max(abs(results{i,j}.storyDrift))./bldg.storyHeight);
+        resultsIDA{i,j} = bldg.responseHistory(gmfile,dt,SF,tend,ground_motions(i).ID,j);
+        maxDriftRatio(j) = max(max(abs(resultsIDA{i,j}.storyDrift))./bldg.storyHeight);
     end
 
     plot(maxDriftRatio,ST,'o-')
@@ -208,7 +232,7 @@ ylabel('Ground motion intensity, S_T (g)')
 legend(legendentries)
 
 % Plot sample response history
-plotSampleResponse(results{1,5})
+plotSampleResponse(resultsIDA{1,5})
 
 if verbose
     ida_time = toc(ida_tic);
@@ -228,6 +252,7 @@ for i = 1:nStories
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
     plotBackboneCurve(materialDefinition,spring.defl_u(i),false)
+    xlim([0 1.1*(spring.defl_y(i)+spring.defl_p(i)+spring.defl_pc(i))])
     title(sprintf('Backbone curve for story %i',i))
     xlabel(sprintf('Deflection (%s)',units.length))
     ylabel(sprintf('Force (%s)',units.force))
