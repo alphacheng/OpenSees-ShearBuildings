@@ -27,7 +27,7 @@ bldg.storyMass = (storyDL .* storyArea)/bldg.g; % Story masses (kslug)
 
 bldg.seismicDesignCategory = 'Dmax';
 bldg.respModCoeff = 8;
-bldg.deflAmplFact = 5.5;
+bldg.deflAmplFact = 8;
 bldg.overstrengthFactor = 3;
 bldg.impFactor = 1;
 
@@ -58,9 +58,9 @@ runIDA      = false;    % Toggle IDA
 
 % Equivalent lateral force options
 iterate = true;             % Select whether to do iteration
-iterOption = 'period';      % Variable to use for convergence: 'period' or 'overstrength'
+iterOption = 'overstrength';      % Variable to use for convergence: 'period' or 'overstrength'
 
-minPeriodDiff = 1e-3;       % Tolerance for period convergence option
+diffTol = 1e-3;             % Tolerance for iteration
 
 % Pushover analysis options
 bldg.pushover_stepSize   = 0.001;
@@ -74,12 +74,12 @@ SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA 
 %% Equivalent lateral force procedure
 
 if verbose; fprintf('Running equivalent lateral force procedure...\n'); end
-resultsELF = bldg.ELFanalysis();
 
 iterating = true;
-periodDiff = 1;
+currDiff = 1+diffTol;
 while iterating == true
     %% Define springs
+    resultsELF = bldg.ELFanalysis();
     spring = bldg.springDesign(resultsELF,springGivens);
 
     bldg.storySpringDefinition = spring.definition;
@@ -91,16 +91,24 @@ while iterating == true
             case 'period'
                 eigenvals = bldg.eigenvalues();
                 calculatedPeriod = (sqrt(eigenvals(1))/(2*pi))^-1;
-                prevDiff = periodDiff;
-                periodDiff = bldg.fundamentalPeriod - calculatedPeriod;
+                prevDiff = currDiff;
+                currDiff = bldg.fundamentalPeriod - calculatedPeriod;
                 bldg.fundamentalPeriod = calculatedPeriod;
-                resultsELF = bldg.ELFanalysis;
-                if prevDiff == periodDiff
+                if prevDiff == currDiff || abs(currDiff) < diffTol
                     iterating = false;
                 end
             case 'overstrength'
-                fprintf('Not yet implemented')
-                iterating = false;
+                [~,eigenvecs] = bldg.eigenvalues;
+                F = bldg.storyMass' .* eigenvecs;
+                resultsPushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
+                Vmax = max(resultsPushover.baseShear);
+                calcOverstr = Vmax/resultsELF.baseShear;
+                prevDiff = currDiff;
+                currDiff = bldg.overstrengthFactor - calcOverstr;
+                bldg.overstrengthFactor = calcOverstr;
+                if prevDiff == currDiff || abs(currDiff) < diffTol
+                    iterating = false;
+                end
         end
     end
 end
@@ -113,7 +121,7 @@ if verbose
     pushover_tic = tic;
 end
 
-[eigenvals,eigenvecs] = bldg.eigenvalues;
+[~,eigenvecs] = bldg.eigenvalues;
 F = bldg.storyMass' .* eigenvecs;
 
 resultsPushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
