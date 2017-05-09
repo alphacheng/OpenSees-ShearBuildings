@@ -83,7 +83,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         end
 
         %% Analyses
-        function eigenvals = eigenvalues(obj)
+        function [eigenvals,eigenvecs] = eigenvalues(obj)
             %% EIGENVALUES Eigenvalue analysis of system.
             %
             %   eigenvals = EIGENVALUES(obj) returns the eigenvalues of obj in
@@ -93,7 +93,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %
 
             filename_input = obj.scratchFile('mdofShearBuilding2d_input.tcl');
-            filename_eigs  = obj.scratchFile('mdofShearBuilding2d_eigs.out');
+            filename_vals  = obj.scratchFile('mdofShearBuilding2d_vals.out');
+            filename_vecs  = obj.scratchFile('mdofShearBuilding2d_vecs.out');
 
             fid = fopen(filename_input,'w');
             fprintf(fid,'model BasicBuilder -ndm 1 -ndf 1 \n');
@@ -110,18 +111,29 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             for i = 1:obj.nStories
                 fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1\n',i,i-1,i,i);
             end
-            fprintf(fid, 'set eigs [eigen -fullGenLapack %i]\n', obj.nStories);
-            fprintf(fid, 'set fid [open %s w+]\n', obj.path_for_tcl(filename_eigs));
-            fprintf(fid, 'puts $fid $eigs\n');
-            fprintf(fid, 'close $fid\n');
+            fprintf(fid,'set eigs [eigen -fullGenLapack %i]\n',obj.nStories);
+            fprintf(fid,'set eigenvalues $eigs\n');
+            fprintf(fid,'set vecs {}\n');
+            fprintf(fid,'set vecfid [open %s w+]\n',obj.path_for_tcl(filename_vecs));
+            fprintf(fid,'for {set i 1} {$i <= %i} {incr i} {\n',obj.nStories);
+            fprintf(fid,'  lappend vecs [nodeEigenvector 1 $i]\n');
+            fprintf(fid,'  puts $vecfid [lindex $vecs [expr $i - 1] 0]\n');
+            fprintf(fid,'}\n');
+            fprintf(fid,'set eigfid [open %s w+]\n',obj.path_for_tcl(filename_vals));
+            fprintf(fid,'puts $eigfid $eigs\n');
+            fprintf(fid,'close $eigfid\n');
+            fprintf(fid,'close $vecfid\n');
             fclose(fid);
 
             [~,~] = obj.runOpenSees(filename_input);
 
-            eigenvals = dlmread(filename_eigs);
+            eigenvals = dlmread(filename_vals);
+            if nargout == 2
+                eigenvecs = dlmread(filename_vecs);
+            end
 
             if obj.deleteFilesAfterAnalysis
-                delete(filename_input,filename_eigs);
+                delete(filename_input,filename_vals,filename_vecs);
             end
 
         end %function:eigenvalues
@@ -151,7 +163,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %   roofDrift               Time history of total roof drift
             %   baseShear               Time history of base shear
             %
-            
+
             assert(isnumeric(F) & isvectorsize(F,obj.nStories),...
                 'F should be a numeric verctor of length %i (number of stories)',obj.nStories);
             if iscolumn(F)
