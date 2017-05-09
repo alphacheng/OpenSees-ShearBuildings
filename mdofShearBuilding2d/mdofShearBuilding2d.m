@@ -87,9 +87,13 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %% EIGENVALUES Eigenvalue analysis of system.
             %
             %   eigenvals = EIGENVALUES(obj) returns the eigenvalues of obj in
-            %       the array eigenvals. Note that the eigenvalues are equal to
+            %       the vector eigenvals. Note that the eigenvalues are equal to
             %       the square of the circular natural frequencies, not the
             %       frequencies themselves.
+            %
+            %   [eigenvals,eigenvecs] = EIGENVALUES(obj) returns the eigenvalues
+            %       in the vector eigenvals and the eigenvectors of the first
+            %       mode of all nodes of obj in the vector eigenvecs.
             %
 
             filename_input = obj.scratchFile('mdofShearBuilding2d_input.tcl');
