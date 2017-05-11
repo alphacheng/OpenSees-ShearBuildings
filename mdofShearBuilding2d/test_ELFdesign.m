@@ -13,6 +13,8 @@ for i = 1:length(neededPaths)
     addpath(neededPaths{i})
 end
 
+results = struct;
+
 %##############################################################################%
 %% Define Building
 nStories = 3;
@@ -20,9 +22,9 @@ bldg = mdofShearBuilding2d(nStories);
 
 bldg.g = 32.2;                                  % Acceleration due to gravity (ft/s^2)
 
-bldg.storyHeight = [20 15 15];                  % Story heights (ft)
-storyDL = [0.080 0.080 0.030];                  % Story dead loads (ksf)
-storyArea = 90*90*ones(1,nStories);             % Story areas (ft^2)
+bldg.storyHeight = [14 12.25 12.25];                  % Story heights (ft)
+storyDL = [80 80 50]/1000;                  % Story dead loads (ksf)
+storyArea = 80*160*ones(1,nStories);             % Story areas (ft^2)
 bldg.storyMass = (storyDL .* storyArea)/bldg.g; % Story masses (kslug)
 
 bldg.seismicDesignCategory = 'Dmax';
@@ -31,15 +33,18 @@ bldg.deflAmplFact = 8;
 bldg.overstrengthFactor = 3;
 bldg.impFactor = 1;
 
-springGivens.as      = 0.04;    % strain hardening ratio
-springGivens.Lambda  = 8.00;    % Cyclic deterioration parameter
-springGivens.c       = 1.00;    % rate of deterioration
-springGivens.Res     = 0.30;    % residual strength ratio
-springGivens.D       = 1.00;    % rate of cyclic deterioration
-springGivens.nFactor = 0.00;    % elastic stiffness amplification factor
-springGivens.C_yc    = 0.90;    % ratio of yield strength to capping strength
-springGivens.C_pcp   = 1.00;    % ratio of post-capping deflection to pre-capping deflection
-springGivens.C_upc   = 20.0;    % ratio of ultimate deflection to u_y + u_p + u_pc
+springGivens.as      =  0.05;   % strain hardening ratio
+springGivens.Lambda  = 10.00;   % Cyclic deterioration parameter
+springGivens.c       =  1.00;   % rate of deterioration
+springGivens.Res     =  0.30;   % residual strength ratio
+springGivens.D       =  1.00;   % rate of cyclic deterioration
+springGivens.nFactor =  0.00;   % elastic stiffness amplification factor
+springGivens.C_yc    =  0.80;   % ratio of yield strength to capping strength
+springGivens.C_pcp   =  1.00;   % ratio of post-capping deflection to pre-capping deflection
+springGivens.C_upc   = 20.00;   % ratio of ultimate deflection to u_y + u_p + u_pc
+
+springGivens.enforceMinimum = true;
+springGivens.minimumRatio = 0.6;
 
 % Units -- used for descriptions only
 units.force = 'kip';
@@ -54,7 +59,7 @@ bldg.deleteFilesAfterAnalysis = true;
 
 verbose     = true ;    % Toggle verbose output
 runPushover = true ;    % Toggle pushover analysis
-runIDA      = false;    % Toggle IDA
+runIDA      = true;    % Toggle IDA
 
 % Equivalent lateral force options
 iterate = false;             % Select whether to do iteration
@@ -79,8 +84,8 @@ iterating = true;
 currDiff = 1+diffTol;
 while iterating == true
     %% Define springs
-    resultsELF = bldg.ELFanalysis();
-    spring = bldg.springDesign(resultsELF,springGivens);
+    results.ELF = bldg.ELFanalysis();
+    spring = bldg.springDesign(results.ELF,springGivens);
 
     bldg.storySpringDefinition = spring.definition;
 
@@ -100,9 +105,9 @@ while iterating == true
             case 'overstrength'
                 [~,eigenvecs] = bldg.eigenvalues;
                 F = bldg.storyMass' .* eigenvecs;
-                resultsPushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
-                Vmax = max(resultsPushover.baseShear);
-                calcOverstr = Vmax/resultsELF.baseShear;
+                results.pushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
+                Vmax = max(results.pushover.baseShear);
+                calcOverstr = Vmax/results.ELF.baseShear;
                 prevDiff = currDiff;
                 currDiff = bldg.overstrengthFactor - calcOverstr;
                 bldg.overstrengthFactor = calcOverstr;
@@ -124,20 +129,23 @@ end
 [~,eigenvecs] = bldg.eigenvalues;
 F = bldg.storyMass' .* eigenvecs;
 
-resultsPushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
+results.pushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
 
-peakShear = max(resultsPushover.baseShear);
-peakShearIndex = resultsPushover.baseShear == peakShear;
+switch results.pushover.exitStatus
+case 'Analysis Successful'
 
-postPeakIndex = resultsPushover.roofDrift > resultsPushover.roofDrift(peakShearIndex);
-postPeakShear = resultsPushover.baseShear(postPeakIndex);
-postPeakDrift = resultsPushover.totalDrift(postPeakIndex,:);
+peakShear = max(results.pushover.baseShear);
+peakShearIndex = results.pushover.baseShear == peakShear;
+
+postPeakIndex = results.pushover.roofDrift > results.pushover.roofDrift(peakShearIndex);
+postPeakShear = results.pushover.baseShear(postPeakIndex);
+postPeakDrift = results.pushover.totalDrift(postPeakIndex,:);
 
 peakShear80 = 0.8*peakShear;
 peakShear80Drift = interp1(postPeakShear,postPeakDrift,peakShear80);
 
-peakStoryDrift = resultsPushover.storyDrift(peakShearIndex,:);
-postPeakStoryDrift = resultsPushover.storyDrift(postPeakIndex,:);
+peakStoryDrift = results.pushover.storyDrift(peakShearIndex,:);
+postPeakStoryDrift = results.pushover.storyDrift(postPeakIndex,:);
 peak80StoryDrift = interp1(postPeakShear,postPeakStoryDrift,peakShear80);
 
 peakStoryDriftRatio   = peakStoryDrift./bldg.storyHeight;
@@ -148,7 +156,7 @@ fprintf('Roof drift at 80%% Peak Shear = %g %s\n',peakShear80Drift(bldg.nStories
 
 figure
 hold on
-plot(resultsPushover.roofDrift,resultsPushover.baseShear,'-')
+plot(results.pushover.roofDrift,results.pushover.baseShear,'-')
 grid on
 grid minor
 xlabel(sprintf('Roof drift (%s)',units.length))
@@ -169,9 +177,14 @@ grid on
 grid minor
 ylim([0.5 bldg.nStories+0.5])
 ylabel('Story')
-xlabel('Story Drift Ratio')
+xlabel('Story Drift Ratio (%)')
 title('Pushover story drifts')
 legend('V_{max}','V_{80}','Location','Southeast')
+
+otherwise
+    fprintf('Pushover analysis failed. See results for details.\n')
+
+end
 
 if verbose
     pushover_time = toc(pushover_tic);
@@ -195,7 +208,7 @@ ST  = SMT*SF2;
 figure
 hold on
 legendentries = cell(nMotions,1);
-resultsIDA = cell(nMotions,length(SF2));
+IDA = cell(nMotions,length(SF2));
 for i = 1:nMotions
     gmfile = bldg.scratchFile(sprintf('acc%s.acc',ground_motions(i).ID));
     gmfid = fopen(gmfile,'w+');
@@ -211,28 +224,32 @@ for i = 1:nMotions
     maxDriftRatio = zeros(length(SF2),1);
     parfor j = 1:length(SF2)
         if verbose
-            fprintf('Calculating IDA point for %s, SF2 = %g\n',ground_motions(i).ID,SF2(j));
+            fprintf('Calculating IDA point for {%s, %2i}, SF2 = %5.2f ... ',ground_motions(i).ID,j,SF2(j));
         end
         SF = SF1*SF2(j);
-        resultsIDA{i,j} = bldg.responseHistory(gmfile,dt,SF,tend,ground_motions(i).ID,j);
-        maxDriftRatio(j) = max(max(abs(resultsIDA{i,j}.storyDrift))./bldg.storyHeight);
+        IDA{i,j} = bldg.responseHistory(gmfile,dt,SF,tend,ground_motions(i).ID,j);
+        maxDriftRatio(j) = max(max(abs(IDA{i,j}.storyDrift))./bldg.storyHeight);
+        if verbose
+            fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio(j)*100);
+        end
     end
 
-    plot(maxDriftRatio,ST,'o-')
+    plot(maxDriftRatio*100,ST,'o-')
     legendentries{i} = ground_motions(i).ID;
 
     if bldg.deleteFilesAfterAnalysis
         delete(gmfile)
     end
 end
+results.IDA = IDA;
 
 grid on
-xlabel('Maximum story drift ratio')
+xlabel('Maximum story drift ratio (%)')
 ylabel('Ground motion intensity, S_T (g)')
 legend(legendentries)
 
 % Plot sample response history
-plotSampleResponse(resultsIDA{1,5})
+plotSampleResponse(results.IDA{1,5})
 
 if verbose
     ida_time = toc(ida_tic);
@@ -258,6 +275,30 @@ for i = 1:nStories
     ylabel(sprintf('Force (%s)',units.force))
     grid on
 end
+
+%##############################################################################%
+%% Plot hysteretic curves
+i=1;
+materialDefinition = bldg.storySpringDefinition{i};
+matTagLoc = strfind(materialDefinition,num2str(i));
+materialDefinition(matTagLoc(1)) = '1';
+
+anaobj = UniaxialMaterialAnalysis(materialDefinition);
+
+peakPoints  = [0 1 -1 2 -2 3 -3 4 -4 5 -5]*0.2;
+rateType    = 'StrainRate';
+rateValue   = peakPoints(2)/10;
+
+results.hysteretic_pos_env = anaobj.runAnalysis([0 max(peakPoints)],rateType,rateValue);
+results.hysteretic_neg_env = anaobj.runAnalysis([0 min(peakPoints)],rateType,rateValue);
+results.hysteretic         = anaobj.runAnalysis(         peakPoints,rateType,rateValue);
+
+figure
+hold on
+plot(results.hysteretic_pos_env.disp,results.hysteretic_pos_env.force,'k--')
+plot(results.hysteretic_neg_env.disp,results.hysteretic_neg_env.force,'k--')
+plot(results.hysteretic.disp,results.hysteretic.force,'r')
+grid on
 
 %##############################################################################%
 %% Cleanup
