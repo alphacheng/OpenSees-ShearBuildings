@@ -485,6 +485,17 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             spring.designStrength  = analysisResults.storyShear*obj.overstrengthFactor;
 
+            if springGivens.enforceMinimum
+                for i = 2:length(spring.designStiffness)
+                    if spring.designStiffness(i) < springGivens.minimumRatio*spring.designStiffness(i-1)
+                        spring.designStiffness(i) = springGivens.minimumRatio*spring.designStiffness(i-1);
+                    end
+                    if spring.designStrength(i) < springGivens.minimumRatio*spring.designStrength(i-1)
+                        spring.designStrength(i) = springGivens.minimumRatio*spring.designStrength(i-1);
+                    end
+                end
+            end
+
             K0      = spring.designStiffness;       % elastic stiffness
             as      = springGivens.as;              % strain hardening ratio
             Lambda  = springGivens.Lambda;          % Cyclic deterioration parameter
