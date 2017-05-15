@@ -53,8 +53,8 @@ springGivens.C_upc    = 20.00;  % ratio of ultimate deflection to u_y + u_p + u_
 
 springGivens.stiffnessSafety = 1.0;
 
-springGivens.enforceMinimum = false;
-springGivens.minimumRatio = 0.6;
+springGivens.enforceMinimum = true;
+springGivens.minimumRatio = 0.5;
 
 
 %##############################################################################%
@@ -142,25 +142,26 @@ end
 
 F = bldg.storyMass' .* eigenvecs;
 if min(F) < 0
-    error('Mode shapes invalid.')
+    F = -F;
 end
 
 results.pushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
 
+figure
+hold on
+plot(results.pushover.roofDrift,results.pushover.baseShear,'-')
+grid on
+grid minor
+xlabel(sprintf('Roof drift (%s)',bldg.units.length))
+ylabel(sprintf('Base shear (%s)',bldg.units.force))
+title('Pushover analysis')
+
 switch results.pushover.exitStatus
 case 'Analysis Successful'
-    figure
-    hold on
-    plot(results.pushover.roofDrift,results.pushover.baseShear,'-')
     axis manual
     plot([0 2*max(results.pushover.roofDrift)],[results.ELF.baseShear results.ELF.baseShear],'k--')
     plot([0 results.pushover.peakTotalDrift(nStories)],[results.pushover.peakShear results.pushover.peakShear],'k--')
     plot([0 results.pushover.peak80TotalDrift(nStories)],[results.pushover.peak80Shear results.pushover.peak80Shear],'k--')
-    grid on
-    grid minor
-    xlabel(sprintf('Roof drift (%s)',bldg.units.length))
-    ylabel(sprintf('Base shear (%s)',bldg.units.force))
-    title('Pushover analysis')
 
     figure
     subplot(1,2,1)
