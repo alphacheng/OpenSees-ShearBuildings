@@ -3,6 +3,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
     properties
         nStories
         g
+        units
 
         storyMass
         storyStiffness
@@ -481,7 +482,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             spring = struct;
 
-            spring.designStiffness = obj.deflAmplFact*analysisResults.storyShear./(obj.impFactor*analysisResults.allowableDrift);
+            spring.designStiffness = springGivens.stiffnessSafety*obj.deflAmplFact*analysisResults.storyShear./(obj.impFactor*analysisResults.allowableDrift);
 
             spring.designStrength  = analysisResults.storyShear*obj.overstrengthFactor;
 
