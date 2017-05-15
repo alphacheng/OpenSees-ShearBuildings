@@ -33,15 +33,17 @@ bldg.deflAmplFact = 8;
 bldg.overstrengthFactor = 3;
 bldg.impFactor = 1;
 
-springGivens.as      =  0.05;   % strain hardening ratio
-springGivens.Lambda  = 10.00;   % Cyclic deterioration parameter
-springGivens.c       =  1.00;   % rate of deterioration
-springGivens.Res     =  0.30;   % residual strength ratio
-springGivens.D       =  1.00;   % rate of cyclic deterioration
-springGivens.nFactor =  0.00;   % elastic stiffness amplification factor
-springGivens.C_yc    =  0.80;   % ratio of yield strength to capping strength
-springGivens.C_pcp   =  1.00;   % ratio of post-capping deflection to pre-capping deflection
-springGivens.C_upc   = 20.00;   % ratio of ultimate deflection to u_y + u_p + u_pc
+springGivens.as       =  0.05;   % strain hardening ratio
+springGivens.Lambda_S = 10.00;   % Cyclic deterioration parameter - strength
+springGivens.Lambda_K = 10.00;  % Cyclic deterioration parameter - stiffness
+springGivens.c_S      =  1.00;   % rate of deterioration - strength
+springGivens.c_K      =  1.00;   % rate of deterioration - stiffness
+springGivens.Res      =  0.30;   % residual strength ratio
+springGivens.D        =  1.00;   % rate of cyclic deterioration
+springGivens.nFactor  =  0.00;   % elastic stiffness amplification factor
+springGivens.C_yc     =  0.80;   % ratio of yield strength to capping strength
+springGivens.C_pcp    =  1.00;   % ratio of post-capping deflection to pre-capping deflection
+springGivens.C_upc    = 20.00;   % ratio of ultimate deflection to u_y + u_p + u_pc
 
 springGivens.stiffnessSafety = 1.0;
 

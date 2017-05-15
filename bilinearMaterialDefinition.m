@@ -1,19 +1,19 @@
 
-function materialDefinition = bilinearMaterialDefinition(matTag, K0, as, My, Lambda, c, theta_p, theta_pc, Res, theta_u, D, nFactor)
+function materialDefinition = bilinearMaterialDefinition(matTag, K0, as, My, Lambda_S, Lambda_K, c_S, c_K, theta_p, theta_pc, Res, theta_u, D, nFactor)
 
 %K0;                        % elastic stiffness
 as_Plus = as;               % strain hardening ratio for positive loading direction
 as_Neg = as;                % strain hardening ratio for negative loading direction
 My_Plus = My;               % effective yield strength for positive loading direction
 My_Neg = -My;               % effective yield strength for negative loading direction (negative value)
-Lambda_S = Lambda;          % Cyclic deterioration parameter for strength deterioration
-Lambda_C = Lambda;          % Cyclic deterioration parameter for post-capping strength deterioration
-Lambda_A = Lambda;          % Cyclic deterioration parameter for acceleration reloading stiffness deterioration (is not a deterioration mode for a component with Bilinear hysteretic response).
-Lambda_K = Lambda;          % Cyclic deterioration parameter for unloading stiffness deterioration
-c_S = c;                    % rate of strength deterioration. The default value is 1.0.
-c_C = c;                    % rate of post-capping strength deterioration. The default value is 1.0.
-c_A = c;                    % rate of accelerated reloading deterioration. The default value is 1.0.
-c_K = c;                    % rate of unloading stiffness deterioration. The default value is 1.0.
+%Lambda_S = Lambda;         % Cyclic deterioration parameter for strength deterioration
+Lambda_C = Lambda_S;        % Cyclic deterioration parameter for post-capping strength deterioration
+Lambda_A = Lambda_K;        % Cyclic deterioration parameter for acceleration reloading stiffness deterioration (is not a deterioration mode for a component with Bilinear hysteretic response).
+%Lambda_K = Lambda;         % Cyclic deterioration parameter for unloading stiffness deterioration
+%c_S = c;                   % rate of strength deterioration. The default value is 1.0.
+c_C = c_S;                  % rate of post-capping strength deterioration. The default value is 1.0.
+c_A = c_K;                  % rate of accelerated reloading deterioration. The default value is 1.0.
+%c_K = c;                   % rate of unloading stiffness deterioration. The default value is 1.0.
 theta_p_Plus = theta_p;     % pre-capping rotation for positive loading direction (often noted as plastic rotation capacity)
 theta_p_Neg = theta_p;      % pre-capping rotation for negative loading direction (often noted as plastic rotation capacity) (positive value)
 theta_pc_Plus = theta_pc;   % post-capping rotation for positive loading direction

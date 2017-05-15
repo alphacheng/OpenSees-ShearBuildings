@@ -497,16 +497,18 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 end
             end
 
-            K0      = spring.designStiffness;       % elastic stiffness
-            as      = springGivens.as;              % strain hardening ratio
-            Lambda  = springGivens.Lambda;          % Cyclic deterioration parameter
-            c       = springGivens.c;               % rate of deterioration
-            Res     = springGivens.Res;             % residual strength ratio
-            D       = springGivens.D;               % rate of cyclic deterioration
-            nFactor = springGivens.nFactor;         % elastic stiffness amplification factor
-            C_yc    = springGivens.C_yc;            % ratio of yield strength to capping strength
-            C_pcp   = springGivens.C_pcp;           % ratio of post-capping deflection to pre-capping deflection
-            C_upc   = springGivens.C_upc;           % ratio of ultimate deflection to u_y + u_p + u_pc
+            K0       = spring.designStiffness;      % elastic stiffness
+            as       = springGivens.as;             % strain hardening ratio
+            Lambda_S = springGivens.Lambda_S;       % Cyclic deterioration parameter - strength
+            Lambda_K = springGivens.Lambda_K;       % Cyclic deterioration parameter - stiffness
+            c_S      = springGivens.c_S;            % rate of deterioration - strength
+            c_K      = springGivens.c_K;            % rate of deterioration - stiffness
+            Res      = springGivens.Res;            % residual strength ratio
+            D        = springGivens.D;              % rate of cyclic deterioration
+            nFactor  = springGivens.nFactor;        % elastic stiffness amplification factor
+            C_yc     = springGivens.C_yc;           % ratio of yield strength to capping strength
+            C_pcp    = springGivens.C_pcp;          % ratio of post-capping deflection to pre-capping deflection
+            C_upc    = springGivens.C_upc;          % ratio of ultimate deflection to u_y + u_p + u_pc
 
             V_c = spring.designStrength;            % strength at capping
             V_y = C_yc*V_c;                         % effective yield strength
@@ -518,7 +520,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             spring.definition = cell(obj.nStories,1);
             for i = 1:obj.nStories
-                spring.definition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda,c,spring.defl_p(i),spring.defl_pc(i),Res,spring.defl_u(i),D,nFactor);
+                spring.definition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda_S,Lambda_K,c_S,c_K,spring.defl_p(i),spring.defl_pc(i),Res,spring.defl_u(i),D,nFactor);
             end
 
         end %function:springDesign
