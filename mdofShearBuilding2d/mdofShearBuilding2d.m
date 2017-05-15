@@ -293,6 +293,26 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             results.roofDrift = results.totalDrift(:,end);
             results.baseShear = results.storyShear(:,1);
 
+            % Analysis
+            if strcmp(results.exitStatus,'Analysis Successful')
+                results.peakShear = max(results.baseShear);
+                peakIndex = results.baseShear == results.peakShear;
+                results.peakTotalDrift = results.totalDrift(peakIndex,:);
+                peakStoryDrift = results.storyDrift(peakIndex,:);
+
+                postPeakIndex = results.roofDrift > results.roofDrift(peakIndex);
+                postPeakShear = results.baseShear(postPeakIndex);
+                postPeakTotalDrift = results.totalDrift(postPeakIndex,:);
+                postPeakStoryDrift = results.storyDrift(postPeakIndex,:);
+
+                results.peak80Shear = 0.8*results.peakShear;
+                results.peak80TotalDrift = interp1(postPeakShear,postPeakTotalDrift,results.peak80Shear);
+                peak80StoryDrift = interp1(postPeakShear,postPeakStoryDrift,results.peak80Shear);
+
+                results.peakStoryDriftRatio   = peakStoryDrift./obj.storyHeight;
+                results.peak80StoryDriftRatio = peak80StoryDrift./obj.storyHeight;
+            end
+
             % Clean Folder
             if obj.deleteFilesAfterAnalysis
                 delete(filename_input,filename_output_def,filename_output_force);
