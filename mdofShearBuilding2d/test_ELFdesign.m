@@ -22,9 +22,9 @@ bldg = mdofShearBuilding2d(nStories);
 
 bldg.g = 32.2;                                  % Acceleration due to gravity (ft/s^2)
 
-bldg.storyHeight = [14 12.25 12.25];                  % Story heights (ft)
-storyDL = [80 80 50]/1000;                  % Story dead loads (ksf)
-storyArea = 80*160*ones(1,nStories);             % Story areas (ft^2)
+bldg.storyHeight = [20 15 15];                  % Story heights (ft)
+storyDL = [80 80 30]/1000;                  % Story dead loads (ksf)
+storyArea = 90*90*ones(1,nStories);             % Story areas (ft^2)
 bldg.storyMass = (storyDL .* storyArea)/bldg.g; % Story masses (kslug)
 
 bldg.seismicDesignCategory = 'Dmax';
@@ -43,14 +43,16 @@ springGivens.C_yc    =  0.80;   % ratio of yield strength to capping strength
 springGivens.C_pcp   =  1.00;   % ratio of post-capping deflection to pre-capping deflection
 springGivens.C_upc   = 20.00;   % ratio of ultimate deflection to u_y + u_p + u_pc
 
+springGivens.stiffnessSafety = 1.0;
+
 springGivens.enforceMinimum = true;
-springGivens.minimumRatio = 0.6;
+springGivens.minimumRatio = 0.7;
 
 % Units -- used for descriptions only
-units.force = 'kip';
-units.mass  = 'kslug';
-units.length= 'ft';
-units.time  = 'sec';
+bldg.units.force = 'kip';
+bldg.units.mass  = 'kslug';
+bldg.units.length= 'ft';
+bldg.units.time  = 'sec';
 
 %##############################################################################%
 %% Analysis Options
@@ -59,7 +61,7 @@ bldg.deleteFilesAfterAnalysis = true;
 
 verbose     = true ;    % Toggle verbose output
 runPushover = true ;    % Toggle pushover analysis
-runIDA      = true;    % Toggle IDA
+runIDA      = false;    % Toggle IDA
 
 % Equivalent lateral force options
 iterate = false;             % Select whether to do iteration
@@ -73,7 +75,7 @@ bldg.pushover_maxDrift   = 100;
 
 % Incremental dynamic analysis options
 nMotions = 6;                              % Number of ground motions to analyze
-SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
+SF2 = [0:0.125:6];% , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
 
 %##############################################################################%
 %% Equivalent lateral force procedure
@@ -82,7 +84,9 @@ if verbose; fprintf('Running equivalent lateral force procedure...\n'); end
 
 iterating = true;
 currDiff = 1+diffTol;
+nIter = 0;
 while iterating == true
+    nIter = nIter + 1;
     %% Define springs
     results.ELF = bldg.ELFanalysis();
     spring = bldg.springDesign(results.ELF,springGivens);
@@ -101,6 +105,7 @@ while iterating == true
                 bldg.fundamentalPeriod = calculatedPeriod;
                 if prevDiff == currDiff || abs(currDiff) < diffTol
                     iterating = false;
+                    fprintf('Did %i iterations.\n',nIter)
                 end
             case 'overstrength'
                 [~,eigenvecs] = bldg.eigenvalues;
@@ -126,8 +131,14 @@ if verbose
     pushover_tic = tic;
 end
 
-[~,eigenvecs] = bldg.eigenvalues;
+% [~,eigenvecs] = bldg.eigenvalues;
+[~,modeShapes] = modalAnalysis(bldg,spring);
+eigenvecs = modeShapes(1,:)';
+
 F = bldg.storyMass' .* eigenvecs;
+if min(F) < 0
+    error('Mode shapes invalid.')
+end
 
 results.pushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
 
@@ -151,16 +162,16 @@ peak80StoryDrift = interp1(postPeakShear,postPeakStoryDrift,peakShear80);
 peakStoryDriftRatio   = peakStoryDrift./bldg.storyHeight;
 peak80StoryDriftRatio = peak80StoryDrift./bldg.storyHeight;
 
-fprintf('80%% Peak Shear = %g %s\n',peakShear80,units.force);
-fprintf('Roof drift at 80%% Peak Shear = %g %s\n',peakShear80Drift(bldg.nStories),units.length);
+fprintf('80%% Peak Shear = %g %s\n',peakShear80,bldg.units.force);
+fprintf('Roof drift at 80%% Peak Shear = %g %s\n',peakShear80Drift(bldg.nStories),bldg.units.length);
 
 figure
 hold on
 plot(results.pushover.roofDrift,results.pushover.baseShear,'-')
 grid on
 grid minor
-xlabel(sprintf('Roof drift (%s)',units.length))
-ylabel(sprintf('Base shear (%s)',units.force))
+xlabel(sprintf('Roof drift (%s)',bldg.units.length))
+ylabel(sprintf('Base shear (%s)',bldg.units.force))
 title('Pushover analysis')
 
 figure
@@ -171,8 +182,8 @@ title('Pushover force distribution')
 ylabel('Story')
 subplot(1,2,2)
 hold on
-plot(peakStoryDriftRatio  ,1:bldg.nStories,'*-')
-plot(peak80StoryDriftRatio,1:bldg.nStories,'*-')
+plot(peakStoryDriftRatio*100  ,1:bldg.nStories,'*-')
+plot(peak80StoryDriftRatio*100,1:bldg.nStories,'*-')
 grid on
 grid minor
 ylim([0.5 bldg.nStories+0.5])
@@ -182,7 +193,7 @@ title('Pushover story drifts')
 legend('V_{max}','V_{80}','Location','Southeast')
 
 otherwise
-    fprintf('Pushover analysis failed. See results for details.\n')
+    fprintf(2,'Pushover analysis failed. See results for details.\n')
 
 end
 
@@ -271,8 +282,8 @@ for i = 1:nStories
     plotBackboneCurve(materialDefinition,spring.defl_u(i),false)
     xlim([0 1.1*(spring.defl_y(i)+spring.defl_p(i)+spring.defl_pc(i))])
     title(sprintf('Backbone curve for story %i',i))
-    xlabel(sprintf('Deflection (%s)',units.length))
-    ylabel(sprintf('Force (%s)',units.force))
+    xlabel(sprintf('Deflection (%s)',bldg.units.length))
+    ylabel(sprintf('Force (%s)',bldg.units.force))
     grid on
 end
 
