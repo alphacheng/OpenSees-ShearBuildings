@@ -53,7 +53,7 @@ springGivens.C_upc    = 20.00;  % ratio of ultimate deflection to u_y + u_p + u_
 
 springGivens.stiffnessSafety = 1.0;
 
-springGivens.enforceMinimum = true;
+springGivens.enforceMinimum = false;
 springGivens.minimumRatio = 0.6;
 
 
@@ -94,7 +94,11 @@ while iterating == true
     results.ELF = bldg.ELFanalysis();
     spring = bldg.springDesign(results.ELF,springGivens);
 
-    bldg.storySpringDefinition = spring.definition;
+    storySpringDefinition = cell(nStories,1);
+    for i = 1:nStories
+        storySpringDefinition{i} = spring(i).definition;
+    end
+    bldg.storySpringDefinition = storySpringDefinition;
 
     if ~iterate
         iterating = false;
@@ -261,17 +265,20 @@ end
 %% Plot backbone curves
 figure
 hold on
-% backbone_ax = cell(nStories,1);
+a = zeros(nStories,1);b = zeros(nStories,1);c = zeros(nStories,1);
 legendentries = cell(nStories,1);
 for i = 1:nStories
-    % backbone_ax{i} = subplot(nStories,1,i);
     materialDefinition = bldg.storySpringDefinition{i};
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
-    plotBackboneCurve(materialDefinition,spring.defl_u(i),false)
+    plotBackboneCurve(materialDefinition,spring(i).defl_u,false)
     legendentries{i} = sprintf('Story %i',i);
+    a(i) = spring(i).defl_y;
+    b(i) = spring(i).defl_p;
+    c(i) = spring(i).defl_pc;
 end
-xlim([0 1.1*max(spring.defl_y+spring.defl_p+spring.defl_pc)])
+
+xlim([0 1.1*max(a+b+c)])
 title('Backbone curves')
 xlabel(sprintf('Deflection (%s)',bldg.units.length))
 ylabel(sprintf('Force (%s)',bldg.units.force))

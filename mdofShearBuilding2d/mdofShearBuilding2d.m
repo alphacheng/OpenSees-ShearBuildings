@@ -502,45 +502,41 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             spring = struct;
 
-            spring.designStiffness = springGivens.stiffnessSafety*obj.deflAmplFact*analysisResults.storyShear./(obj.impFactor*analysisResults.allowableDrift);
+            designStiffness = springGivens.stiffnessSafety*obj.deflAmplFact*analysisResults.storyShear./(obj.impFactor*analysisResults.allowableDrift);
 
-            spring.designStrength  = analysisResults.storyShear*obj.overstrengthFactor;
+            designStrength  = analysisResults.storyShear*obj.overstrengthFactor;
 
             if springGivens.enforceMinimum
-                for i = 2:length(spring.designStiffness)
-                    if spring.designStiffness(i) < springGivens.minimumRatio*spring.designStiffness(i-1)
-                        spring.designStiffness(i) = springGivens.minimumRatio*spring.designStiffness(i-1);
+                for i = 2:length(designStiffness)
+                    if designStiffness(i) < springGivens.minimumRatio*designStiffness(i-1)
+                        designStiffness(i) = springGivens.minimumRatio*designStiffness(i-1);
                     end
-                    if spring.designStrength(i) < springGivens.minimumRatio*spring.designStrength(i-1)
-                        spring.designStrength(i) = springGivens.minimumRatio*spring.designStrength(i-1);
+                    if designStrength(i) < springGivens.minimumRatio*designStrength(i-1)
+                        designStrength(i) = springGivens.minimumRatio*designStrength(i-1);
                     end
                 end
             end
 
-            K0       = spring.designStiffness;      % elastic stiffness
-            as       = springGivens.as;             % strain hardening ratio
-            Lambda_S = springGivens.Lambda_S;       % Cyclic deterioration parameter - strength
-            Lambda_K = springGivens.Lambda_K;       % Cyclic deterioration parameter - stiffness
-            c_S      = springGivens.c_S;            % rate of deterioration - strength
-            c_K      = springGivens.c_K;            % rate of deterioration - stiffness
-            Res      = springGivens.Res;            % residual strength ratio
-            D        = springGivens.D;              % rate of cyclic deterioration
-            nFactor  = springGivens.nFactor;        % elastic stiffness amplification factor
-            C_yc     = springGivens.C_yc;           % ratio of yield strength to capping strength
-            C_pcp    = springGivens.C_pcp;          % ratio of post-capping deflection to pre-capping deflection
-            C_upc    = springGivens.C_upc;          % ratio of ultimate deflection to u_y + u_p + u_pc
-
-            V_c = spring.designStrength;            % strength at capping
-            V_y = C_yc*V_c;                         % effective yield strength
-
-            spring.defl_y = V_y./K0;                                % deflection at yield
-            spring.defl_p = (V_c-V_y)./(as*K0);                     % pre-capping deflection
-            spring.defl_pc = C_pcp*spring.defl_p;                          % post-capping deflection
-            spring.defl_u  = C_upc*(spring.defl_y + spring.defl_p + spring.defl_pc);     % ultimate deflection capacity
-
-            spring.definition = cell(obj.nStories,1);
             for i = 1:obj.nStories
-                spring.definition{i} = bilinearMaterialDefinition(i,K0(i),as,V_y(i),Lambda_S,Lambda_K,c_S,c_K,spring.defl_p(i),spring.defl_pc(i),Res,spring.defl_u(i),D,nFactor);
+                spring(i).K0       = designStiffness(i);            % elastic stiffness
+                spring(i).as       = springGivens.as;               % strain hardening ratio
+                spring(i).Lambda_S = springGivens.Lambda_S;         % Cyclic deterioration parameter - strength
+                spring(i).Lambda_K = springGivens.Lambda_K;         % Cyclic deterioration parameter - stiffness
+                spring(i).c_S      = springGivens.c_S;              % rate of deterioration - strength
+                spring(i).c_K      = springGivens.c_K;              % rate of deterioration - stiffness
+                spring(i).Res      = springGivens.Res;              % residual strength ratio
+                spring(i).D        = springGivens.D;                % rate of cyclic deterioration
+                spring(i).nFactor  = springGivens.nFactor;          % elastic stiffness amplification factor
+
+                spring(i).V_c = designStrength(i);                  % strength at capping
+                spring(i).V_y = springGivens.C_yc*spring(i).V_c;    % effective yield strength
+
+                spring(i).defl_y  = spring(i).V_y./spring(i).K0;                                                    % deflection at yield
+                spring(i).defl_p  = (spring(i).V_c-spring(i).V_y)./(spring(i).as*spring(i).K0);                     % pre-capping deflection
+                spring(i).defl_pc = springGivens.C_pcp*spring(i).defl_p;                                            % post-capping deflection
+                spring(i).defl_u  = springGivens.C_upc*(spring(i).defl_y + spring(i).defl_p + spring(i).defl_pc);   % ultimate deflection capacity
+
+                spring(i).definition = bilinearMaterialDefinition(i,spring(i));
             end
 
         end %function:springDesign

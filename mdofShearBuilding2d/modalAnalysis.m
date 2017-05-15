@@ -1,7 +1,10 @@
 function [natFreqs,modeShapes] = modalAnalysis(bldg,spring)
 
 m = bldg.storyMass;
-k = spring.designStiffness;
+k = zeros(1,bldg.nStories);
+for i = 1:bldg.nStories
+    k(i) = spring(i).K0;
+end
 
 M = diag(m);
 
