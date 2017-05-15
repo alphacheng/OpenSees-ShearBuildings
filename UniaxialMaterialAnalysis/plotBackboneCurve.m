@@ -1,5 +1,9 @@
 function plotBackboneCurve(materialDefinition,theta_u,newfig)
 
+if nargin == 2
+    newfig = true;
+end
+
 anaobj = UniaxialMaterialAnalysis(materialDefinition);
 
 rateType    = 'StrainRate';
