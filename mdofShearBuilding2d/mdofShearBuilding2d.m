@@ -121,7 +121,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             fprintf(fid,'set vecs {}\n');
             fprintf(fid,'set vecfid [open %s w+]\n',obj.path_for_tcl(filename_vecs));
             fprintf(fid,'for {set i 1} {$i <= %i} {incr i} {\n',obj.nStories);
-            fprintf(fid,'  lappend vecs [nodeEigenvector 1 $i]\n');
+            fprintf(fid,'  lappend vecs [nodeEigenvector $i 1]\n');
             fprintf(fid,'  puts $vecfid [lindex $vecs [expr $i - 1] 0]\n');
             fprintf(fid,'}\n');
             fprintf(fid,'set eigfid [open %s w+]\n',obj.path_for_tcl(filename_vals));

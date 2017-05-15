@@ -5,7 +5,7 @@
 %% Startup
 
 tic
-clear; close all; clc;
+clear all; close all; clc;   %#ok<CLALL>
 neededPaths={'../'; ...
              '../UniaxialMaterialAnalysis'};
 
@@ -115,9 +115,7 @@ while iterating == true
                     fprintf('Did %i iterations.\n',nIter)
                 end
             case 'overstrength'
-                % [~,eigenvecs] = bldg.eigenvalues;
-                [~,modeShapes] = modalAnalysis(bldg,spring);
-                eigenvecs = modeShapes(1,:)';
+                [~,eigenvecs] = bldg.eigenvalues;
                 F = bldg.storyMass' .* eigenvecs;
                 results.pushover = bldg.pushover(F,'TargetPostPeakRatio',0.75);
                 Vmax = max(results.pushover.baseShear);
@@ -140,9 +138,7 @@ if verbose
     pushover_tic = tic;
 end
 
-% [~,eigenvecs] = bldg.eigenvalues;
-[~,modeShapes] = modalAnalysis(bldg,spring);
-eigenvecs = modeShapes(1,:)';
+[~,eigenvecs] = bldg.eigenvalues;
 
 F = bldg.storyMass' .* eigenvecs;
 if min(F) < 0
@@ -294,12 +290,12 @@ for i = 1:nStories
 
     anaobj = UniaxialMaterialAnalysis(materialDefinition);
 
-    peakPoints  = [0 1 -1 2 -2 3 -3 4 -4 5 -5]*0.2;
+    peakPoints  = [0 1 -1 2 -2 3 -3 4 -4 5 -5]*0.2*0.8*(spring(i).defl_y+spring(i).defl_p+spring(i).defl_pc);
     rateType    = 'StrainRate';
     rateValue   = peakPoints(2)/10;
 
-    results.hysteretic_pos_env = anaobj.runAnalysis([0 max(peakPoints)],rateType,rateValue);
-    results.hysteretic_neg_env = anaobj.runAnalysis([0 min(peakPoints)],rateType,rateValue);
+    results.hysteretic_pos_env = anaobj.runAnalysis([0 1.2*max(peakPoints)],rateType,rateValue);
+    results.hysteretic_neg_env = anaobj.runAnalysis([0 1.2*min(peakPoints)],rateType,rateValue);
     results.hysteretic         = anaobj.runAnalysis(         peakPoints,rateType,rateValue);
 
     figure
