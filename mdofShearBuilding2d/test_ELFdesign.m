@@ -45,7 +45,7 @@ springGivens.C_upc   = 20.00;   % ratio of ultimate deflection to u_y + u_p + u_
 
 springGivens.stiffnessSafety = 1.0;
 
-springGivens.enforceMinimum = true;
+springGivens.enforceMinimum = false;
 springGivens.minimumRatio = 0.7;
 
 % Units -- used for descriptions only
@@ -75,7 +75,7 @@ bldg.pushover_maxDrift   = 100;
 
 % Incremental dynamic analysis options
 nMotions = 6;                              % Number of ground motions to analyze
-SF2 = [0:0.125:6];% , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
+SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
 
 %##############################################################################%
 %% Equivalent lateral force procedure
@@ -289,27 +289,28 @@ end
 
 %##############################################################################%
 %% Plot hysteretic curves
-i=1;
-materialDefinition = bldg.storySpringDefinition{i};
-matTagLoc = strfind(materialDefinition,num2str(i));
-materialDefinition(matTagLoc(1)) = '1';
+for i = 1:nStories
+    materialDefinition = bldg.storySpringDefinition{i};
+    matTagLoc = strfind(materialDefinition,num2str(i));
+    materialDefinition(matTagLoc(1)) = '1';
 
-anaobj = UniaxialMaterialAnalysis(materialDefinition);
+    anaobj = UniaxialMaterialAnalysis(materialDefinition);
 
-peakPoints  = [0 1 -1 2 -2 3 -3 4 -4 5 -5]*0.2;
-rateType    = 'StrainRate';
-rateValue   = peakPoints(2)/10;
+    peakPoints  = [0 1 -1 2 -2 3 -3 4 -4 5 -5]*0.2;
+    rateType    = 'StrainRate';
+    rateValue   = peakPoints(2)/10;
 
-results.hysteretic_pos_env = anaobj.runAnalysis([0 max(peakPoints)],rateType,rateValue);
-results.hysteretic_neg_env = anaobj.runAnalysis([0 min(peakPoints)],rateType,rateValue);
-results.hysteretic         = anaobj.runAnalysis(         peakPoints,rateType,rateValue);
+    results.hysteretic_pos_env = anaobj.runAnalysis([0 max(peakPoints)],rateType,rateValue);
+    results.hysteretic_neg_env = anaobj.runAnalysis([0 min(peakPoints)],rateType,rateValue);
+    results.hysteretic         = anaobj.runAnalysis(         peakPoints,rateType,rateValue);
 
-figure
-hold on
-plot(results.hysteretic_pos_env.disp,results.hysteretic_pos_env.force,'k--')
-plot(results.hysteretic_neg_env.disp,results.hysteretic_neg_env.force,'k--')
-plot(results.hysteretic.disp,results.hysteretic.force,'r')
-grid on
+    figure
+    hold on
+    plot(results.hysteretic_pos_env.disp,results.hysteretic_pos_env.force,'k--')
+    plot(results.hysteretic_neg_env.disp,results.hysteretic_neg_env.force,'k--')
+    plot(results.hysteretic.disp,results.hysteretic.force,'r')
+    grid on
+end
 
 %##############################################################################%
 %% Cleanup
