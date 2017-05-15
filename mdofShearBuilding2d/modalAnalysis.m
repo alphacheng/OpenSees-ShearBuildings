@@ -16,7 +16,7 @@ for i = 1:bldg.nStories
         end
     end
 end
-K = K + K' - diag(diag(K));
+K = K + K' - diag(diag(K)); % Mirror K along the diagonal
 
 sys.mass = M;
 sys.stiffness = K;
