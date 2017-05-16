@@ -547,10 +547,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
         function animateResponseHistory(obj,results)
 
-            cumHeights = zeros(1,length(obj.storyHeight));
-            for i = 1:length(obj.storyHeight)
-                cumHeights(i) = sum(obj.storyHeight(1:i));
-            end
+            cumHeights = cumsum(obj.storyHeight);
 
             figure
 
