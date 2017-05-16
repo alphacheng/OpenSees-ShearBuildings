@@ -482,7 +482,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 k = interp1([0.5 2.5],[1 2],obj.fundamentalPeriod);
             end
 
-            verticalDistributionFactor = (obj.storyMass*obj.g .* obj.storyHeight.^k)/sum(obj.storyMass*obj.g .* obj.storyHeight.^k);
+            verticalDistributionFactor = (obj.storyMass*obj.g .* cumsum(obj.storyHeight).^k)/sum(obj.storyMass*obj.g .* cumsum(obj.storyHeight).^k);
 
             results.storyForce = verticalDistributionFactor*results.baseShear;
             results.storyShear = zeros(1,obj.nStories);
