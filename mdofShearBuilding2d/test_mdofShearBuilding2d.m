@@ -115,6 +115,8 @@ case 'Analysis Successful'
     plot(results.pushover.peak80StoryDriftRatio*100,1:nStories,'*-')
     grid on
     grid minor
+    xl = xlim;
+    xlim([0 xl(2)])
     ylim([0.5 nStories+0.5])
     ylabel('Story')
     xlabel('Story Drift Ratio (%)')
@@ -135,6 +137,8 @@ otherwise
     plot(failedRatio*100  ,1:nStories,'*-')
     grid on
     grid minor
+    xl = xlim;
+    xlim([0 xl(2)])
     ylim([0.5 nStories+0.5])
     ylabel('Story')
     xlabel('Story Drift Ratio (%)')
