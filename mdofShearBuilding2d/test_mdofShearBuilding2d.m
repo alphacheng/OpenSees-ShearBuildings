@@ -266,6 +266,10 @@ for i = 1:nStories
     plot(results.hysteretic_neg_env.disp,results.hysteretic_neg_env.force,'k--')
     plot(results.hysteretic.disp,results.hysteretic.force,'r')
     grid on
+
+    title(sprintf('Spring for story %i',i))
+    xlabel(sprintf('Deflection (%s)',bldg.units.length))
+    ylabel(sprintf('Force (%s)',bldg.units.force))
 end
 
 %##############################################################################%
