@@ -24,7 +24,7 @@ bldg.impFactor = 1;
 
 springGivens.as       =  0.05;  % strain hardening ratio
 springGivens.Lambda_S =  8.00;  % Cyclic deterioration parameter - strength
-springGivens.Lambda_K = 10.00;  % Cyclic deterioration parameter - stiffness
+springGivens.Lambda_K =  8.00;  % Cyclic deterioration parameter - stiffness
 springGivens.c_S      =  1.00;  % rate of deterioration - strength
 springGivens.c_K      =  1.00;  % rate of deterioration - stiffness
 springGivens.Res      =  0.30;  % residual strength ratio
@@ -34,10 +34,11 @@ springGivens.C_yc     =  0.80;  % ratio of yield strength to capping strength
 springGivens.C_pcp    =  1.00;  % ratio of post-capping deflection to pre-capping deflection
 springGivens.C_upc    = 20.00;  % ratio of ultimate deflection to u_y + u_p + u_pc
 
-springGivens.stiffnessSafety = 1.0;
+springGivens.stiffnessSafety = 3.5;
 springGivens.strengthSafety = 1.0;
 
-springGivens.enforceMinimum = true;
+springGivens.enforceMinimumStiffness = false;
+springGivens.enforceMinimumStrength = false;
 springGivens.minimumRatio = 0.5;
 
 
@@ -61,5 +62,5 @@ bldg.pushover_stepSize   = 0.001;
 bldg.pushover_maxDrift   = 100;
 
 % Incremental dynamic analysis options
-nMotions = 12;                              % Number of ground motions to analyze
+nMotions = 6;                              % Number of ground motions to analyze
 SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
