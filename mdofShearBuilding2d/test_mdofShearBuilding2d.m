@@ -184,6 +184,7 @@ end
 results.IDA = IDA;
 
 grid on
+xlim([0 15])
 xlabel('Maximum story drift ratio (%)')
 ylabel('Ground motion intensity, S_T (g)')
 legend(legendentries)
