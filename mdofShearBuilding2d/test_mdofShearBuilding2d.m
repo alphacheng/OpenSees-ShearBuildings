@@ -95,6 +95,9 @@ title('Pushover analysis')
 
 switch results.pushover.exitStatus
 case 'Analysis Successful'
+    calcOverstr = results.pushover.peakShear/results.ELF.baseShear;
+    fprintf('Calculated overstrength = %g\n',calcOverstr)
+
     axis manual
     plot([0 2*max(results.pushover.roofDrift)],[results.ELF.baseShear results.ELF.baseShear],'k--')
     plot([0 results.pushover.peakTotalDrift(nStories)],[results.pushover.peakShear results.pushover.peakShear],'k--')
