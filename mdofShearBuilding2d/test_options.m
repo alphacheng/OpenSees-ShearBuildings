@@ -18,7 +18,7 @@ bldg.storyMass = (storyDL .* storyArea)/bldg.g; % Story masses (kslug)
 
 bldg.seismicDesignCategory = 'Dmax';
 bldg.respModCoeff = 8;
-bldg.deflAmplFact = 8;
+bldg.deflAmplFact = 5;
 bldg.overstrengthFactor = 3;
 bldg.impFactor = 1;
 
@@ -35,6 +35,7 @@ springGivens.C_pcp    =  1.00;  % ratio of post-capping deflection to pre-cappin
 springGivens.C_upc    = 20.00;  % ratio of ultimate deflection to u_y + u_p + u_pc
 
 springGivens.stiffnessSafety = 1.0;
+springGivens.strengthSafety = 1.0;
 
 springGivens.enforceMinimum = true;
 springGivens.minimumRatio = 0.5;
@@ -47,7 +48,7 @@ bldg.deleteFilesAfterAnalysis = true;
 
 verbose     = true ;    % Toggle verbose output
 runPushover = true ;    % Toggle pushover analysis
-runIDA      = false;    % Toggle IDA
+runIDA      = true ;    % Toggle IDA
 
 % Equivalent lateral force options
 iterate = false;             % Select whether to do iteration
@@ -60,5 +61,5 @@ bldg.pushover_stepSize   = 0.001;
 bldg.pushover_maxDrift   = 100;
 
 % Incremental dynamic analysis options
-nMotions = 6;                              % Number of ground motions to analyze
+nMotions = 12;                              % Number of ground motions to analyze
 SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve

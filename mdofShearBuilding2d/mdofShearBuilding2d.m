@@ -504,7 +504,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             designStiffness = springGivens.stiffnessSafety*obj.deflAmplFact*analysisResults.storyShear./(obj.impFactor*analysisResults.allowableDrift);
 
-            designStrength  = analysisResults.storyShear*obj.overstrengthFactor;
+            designStrength  = springGivens.strengthSafety*obj.overstrengthFactor*analysisResults.storyShear;
 
             if springGivens.enforceMinimum
                 for i = 2:length(designStiffness)
