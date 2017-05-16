@@ -123,6 +123,22 @@ case 'Analysis Successful'
 
 otherwise
     fprintf(2,'Pushover analysis failed. See results for details.\n')
+    failedRatio = results.pushover.storyDrift(end,:)./bldg.storyHeight;
+    figure
+    subplot(1,2,1)
+    barh(F/sum(F),0.1)
+    grid on
+    title('Pushover force distribution')
+    ylabel('Story')
+    subplot(1,2,2)
+    hold on
+    plot(failedRatio*100  ,1:nStories,'*-')
+    grid on
+    grid minor
+    ylim([0.5 nStories+0.5])
+    ylabel('Story')
+    xlabel('Story Drift Ratio (%)')
+    title('Pushover story drifts')
 
 end
 
