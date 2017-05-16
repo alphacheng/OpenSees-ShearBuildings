@@ -1,4 +1,4 @@
-function plotBackboneCurve(materialDefinition,theta_u,newfig)
+function plotBackboneCurve(materialDefinition,endpoint,newfig)
 
 if nargin == 2
     newfig = true;
@@ -8,7 +8,7 @@ anaobj = UniaxialMaterialAnalysis(materialDefinition);
 
 rateType    = 'StrainRate';
 rateValue   = 0.001;
-results_pos_env = anaobj.runAnalysis([0 1.1*theta_u],rateType,rateValue);
+results_pos_env = anaobj.runAnalysis([0 endpoint],rateType,rateValue);
 
 if newfig
     figure
