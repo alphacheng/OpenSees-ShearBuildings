@@ -490,10 +490,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 results.storyShear(i) = sum(results.storyForce(i:end));
             end
 
-            results.allowableDrift = zeros(1,obj.nStories);
-            for i = 1:obj.nStories
-                results.allowableDrift(i) = 0.020*sum(obj.storyHeight(1:i));
-            end
+            results.allowableDrift = 0.020*obj.storyHeight;
 
         end %function:ELFanalysis
 
