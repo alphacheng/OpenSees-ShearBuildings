@@ -551,9 +551,9 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %       timestep used. This option must be used to allow for
             %       pushover analyses, as those contain no time results and time
             %       is arbitrary with them anyways.
-            %  
+            %
 
-            if nargin == 1
+            if nargin == 2
                 dt = max(diff(results.time));
             end
 
