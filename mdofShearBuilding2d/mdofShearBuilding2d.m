@@ -542,7 +542,20 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
         end %function:springDesign
 
-        function animateResponseHistory(obj,results)
+        function animateResponseHistory(obj,results,dt)
+            %% ANIMATERESPONSEHISTORY Animate a given response history
+            %
+            %   ANIMATERESPONSEHISTORY(obj,results) is the default usage.
+            %
+            %   ANIMATERESPONSEHISTORY(obj,results,dt) allows for overriding the
+            %       timestep used. This option must be used to allow for
+            %       pushover analyses, as those contain no time results and time
+            %       is arbitrary with them anyways.
+            %  
+
+            if nargin == 1
+                dt = max(diff(results.time));
+            end
 
             cumHeights = cumsum(obj.storyHeight);
 
@@ -551,7 +564,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             grid on
             grid minor
 
-            dt = max(diff(results.time));
             xMax = max(max(abs(results.totalDrift)));
             yMax = sum(obj.storyHeight) + obj.storyHeight(1);
 
