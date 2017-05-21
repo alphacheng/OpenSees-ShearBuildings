@@ -245,6 +245,7 @@ grid on
 
 %##############################################################################%
 %% Plot hysteretic curves
+if plotHysteretic
 for i = 1:nStories
     materialDefinition = bldg.storySpringDefinition{i};
     matTagLoc = strfind(materialDefinition,num2str(i));
@@ -271,7 +272,7 @@ for i = 1:nStories
     xlabel(sprintf('Deflection (%s)',bldg.units.length))
     ylabel(sprintf('Force (%s)',bldg.units.force))
 end
-
+end
 %##############################################################################%
 %% Cleanup
 
