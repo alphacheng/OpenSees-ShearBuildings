@@ -6,7 +6,7 @@
 
 tic
 clear all; close all; clc;   %#ok<CLALL>
-neededPaths={'../'; ...
+neededPaths={'../'
              '../UniaxialMaterialAnalysis'};
 
 for i = 1:length(neededPaths)
