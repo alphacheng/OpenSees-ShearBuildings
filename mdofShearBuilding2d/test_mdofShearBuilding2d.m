@@ -188,13 +188,23 @@ for i = 1:nMotions
         end
         SF = SF1*SF2(j);
         IDA{i,j} = bldg.responseHistory(gmfile,dt,SF,tend,ground_motions(i).ID,j);
-        maxDriftRatio(j) = max(max(abs(IDA{i,j}.storyDrift))./bldg.storyHeight);
-        if verbose
-            fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio(j)*100);
+        switch IDA{i,j}.exitStatus
+        case 'Analysis Failed'
+            maxDriftRatio(j) = NaN;
+            if verbose
+                fprintf('Analysis failed\n');
+            end
+        case 'Analysis Successful'
+            maxDriftRatio(j) = max(max(abs(IDA{i,j}.storyDrift))./bldg.storyHeight);
+            if verbose
+                fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio(j)*100);
+            end
         end
-    end
 
-    plot(maxDriftRatio*100,ST,'o-')
+    end
+    goodDrifts = ~isnan(maxDriftRatio);
+
+    plot(maxDriftRatio(goodDrifts)*100,ST(goodDrifts),'o-')
     legendentries{i} = ground_motions(i).ID;
 
     if bldg.deleteFilesAfterAnalysis
