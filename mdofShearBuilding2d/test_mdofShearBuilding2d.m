@@ -187,7 +187,7 @@ for i = 1:nMotions
             fprintf('Calculating IDA point for {%s, %2i}, S_T = %5.2f ... ',ground_motions(i).ID,j,ST(j));
         end
         SF = SF1*SF2(j);
-        IDA{i,j} = bldg.responseHistory(gmfile,dt,SF,tend,ground_motions(i).ID,j);
+        IDA{i,j} = responseHistory(bldg,gmfile,dt,SF,tend,ground_motions(i).ID,j);
         switch IDA{i,j}.exitStatus
             case 'Analysis Failed'
                 maxDriftRatio(j) = NaN;
