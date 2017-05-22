@@ -184,21 +184,21 @@ for i = 1:nMotions
     maxDriftRatio = zeros(length(SF2),1);
     parfor j = 1:length(SF2)
         if verbose
-            fprintf('Calculating IDA point for {%s, %2i}, SF2 = %5.2f ... ',ground_motions(i).ID,j,SF2(j));
+            fprintf('Calculating IDA point for {%s, %2i}, S_T = %5.2f ... ',ground_motions(i).ID,j,ST(j));
         end
         SF = SF1*SF2(j);
         IDA{i,j} = bldg.responseHistory(gmfile,dt,SF,tend,ground_motions(i).ID,j);
         switch IDA{i,j}.exitStatus
-        case 'Analysis Failed'
-            maxDriftRatio(j) = NaN;
-            if verbose
-                fprintf('Analysis failed\n');
-            end
-        case 'Analysis Successful'
-            maxDriftRatio(j) = max(max(abs(IDA{i,j}.storyDrift))./bldg.storyHeight);
-            if verbose
-                fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio(j)*100);
-            end
+            case 'Analysis Failed'
+                maxDriftRatio(j) = NaN;
+                if verbose
+                    fprintf('Analysis failed\n');
+                end
+            case 'Analysis Successful'
+                maxDriftRatio(j) = max(max(abs(IDA{i,j}.storyDrift))./bldg.storyHeight);
+                if verbose
+                    fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio(j)*100);
+                end
         end
 
     end
