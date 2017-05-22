@@ -199,26 +199,31 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             % Create .tcl file
             fid = fopen(filename_input,'w');
-            fprintf(fid,'model BasicBuilder -ndm 1 -ndf 1 \n');
+            fprintf(fid,'model BasicBuilder -ndm 2 -ndf 3 \n');
             for i = 0:obj.nStories
-                fprintf(fid,'node %i 0.0\n',i);
+                fprintf(fid,'node %i 0.0 0.0\n',i);
+                fprintf(fid,'node %i 0.0 0.0\n',100+i);
             end
             for i = 1:obj.nStories
-                fprintf(fid,'mass %i %g\n',i,obj.storyMass(i));
+                fprintf(fid,'mass %i %g 0.0 0.0\n',i,obj.storyMass(i));
             end
-            fprintf(fid,'fix 0 1 \n');
+            fprintf(fid,'fix 0 1 1 1 \n');
+            fprintf(fid,'fix 100 1 1 0 \n');
             for i = 1:length(obj.storySpringDefinition)
                 fprintf(fid,'%s\n',obj.storySpringDefinition{i});
             end
+            fprintf(fid,'uniaxialMaterial Elastic 999 9e99\n');
             for i = 1:obj.nStories
                 fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1\n',i,i-1,i,i);
+                fprintf(fid,'element zeroLength %i %i %i -mat 999 -dir 1\n',100+i,i,100+i);
+                fprintf(fid,'element zeroLength %i %i %i -mat 999 -dir 2\n',200+i,100+i,99+i);
             end
 
             fprintf(fid,'timeSeries Linear 1\n');
             fprintf(fid,'pattern Plain 1 1 {\n');
             for i = 1:obj.nStories
                 if F(i) ~= 0
-                    fprintf(fid,'    load %i %g \n',i,F(i));
+                    fprintf(fid,'    load %i %g 0.0 0.0 \n',i,F(i));
                 end
             end
             fprintf(fid,'} \n');
