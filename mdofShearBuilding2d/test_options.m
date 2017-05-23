@@ -1,6 +1,6 @@
 %##############################################################################%
 %% Define Building
-nStories = 6;
+nStories = 5;
 bldg = mdofShearBuilding2d(nStories);
 
 % Units
@@ -24,20 +24,21 @@ bldg.deflAmplFact = 8;
 bldg.overstrengthFactor = 3;
 bldg.impFactor = 1;
 
-springGivens.as       =  0.05;  % strain hardening ratio
-springGivens.Lambda_S = 10.00;  % Cyclic deterioration parameter - strength
-springGivens.Lambda_K = 10.00;  % Cyclic deterioration parameter - stiffness
+springGivens.as       =  0.01;  % strain hardening ratio
+springGivens.Lambda_S =  8.00;  % Cyclic deterioration parameter - strength
+springGivens.Lambda_K =  8.00;  % Cyclic deterioration parameter - stiffness
 springGivens.c_S      =  1.00;  % rate of deterioration - strength
 springGivens.c_K      =  1.00;  % rate of deterioration - stiffness
-springGivens.Res      =  0.30;  % residual strength ratio
+springGivens.Res      =  0.30;  % residual strength ratio (relative to yield)
 springGivens.D        =  1.00;  % rate of cyclic deterioration
 springGivens.nFactor  =  0.00;  % elastic stiffness amplification factor
-springGivens.C_yc     =  0.80;  % ratio of yield strength to capping strength
-springGivens.C_pcp    =  6.00;  % ratio of post-capping deflection to pre-capping deflection
+springGivens.C_yc     =  0.90;  % ratio of yield strength to capping strength
+springGivens.C_pcp    =  8.00;  % ratio of post-capping deflection to pre-capping deflection
 springGivens.C_upc    = 20.00;  % ratio of ultimate deflection to u_y + u_p + u_pc
+springGivens.theta_pc = 0.3;     % angle of post-capping stiffness (degrees)
 
 springGivens.stiffnessSafety = 1.0;
-springGivens.strengthSafety = 1.0;
+springGivens.strengthSafety  = 1.0;
 
 springGivens.enforceMinimumStiffness = false;
 springGivens.enforceMinimumStrength = false;
@@ -51,19 +52,20 @@ bldg.deleteFilesAfterAnalysis = true;
 
 verbose     = true ;    % Toggle verbose output
 runPushover = true ;    % Toggle pushover analysis
-runIDA      = true ;    % Toggle IDA
-plotHysteretic = false; % Toggle plotting hysteretic curves
+runIDA      = false ;    % Toggle IDA
+plotHysteretic = true; % Toggle plotting hysteretic curves
 
 % Equivalent lateral force options
-iterate = false;             % Select whether to do iteration
-iterOption = 'overstrength';      % Variable to use for convergence: 'period' or 'overstrength'
+iterate    = false;             % Select whether to do iteration
+iterOption = 'overstrength';    % Variable to use for convergence: 'period' or 'overstrength'
 
 diffTol = 1e-3;             % Tolerance for iteration
 
 % Pushover analysis options
-bldg.pushover_stepSize   = 0.001;
-bldg.pushover_maxDrift   = 100;
+bldg.pushover_stepSize = 0.001;
+bldg.pushover_maxDrift = min(bldg.storyHeight);
 
 % Incremental dynamic analysis options
-nMotions = 4;                              % Number of ground motions to analyze
-SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
+nMotions = 7;                              % Number of ground motions to analyze
+ST = 0.25:0.25:8;
+% SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve

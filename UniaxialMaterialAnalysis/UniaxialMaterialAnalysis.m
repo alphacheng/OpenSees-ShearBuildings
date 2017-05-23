@@ -1,10 +1,10 @@
 classdef UniaxialMaterialAnalysis < OpenSeesAnalysis
-    
+
     properties
         uniaxial_material_def
         uniaxial_material_tag = 1;
     end
-    
+
     methods
         %% Constructor
         function obj = UniaxialMaterialAnalysis(def,tag)
@@ -13,7 +13,7 @@ classdef UniaxialMaterialAnalysis < OpenSeesAnalysis
                 obj.uniaxial_material_tag = tag;
             end
         end
-        
+
         %% Set and get functions
         function set.uniaxial_material_def(obj,def)
             if ischar(def)
@@ -30,18 +30,22 @@ classdef UniaxialMaterialAnalysis < OpenSeesAnalysis
                 error('uniaxial_material_def should be a cell vector');
             end
         end
-        
+
         %% Run Analysis
-        function results = runAnalysis(obj,peakPoints,rateType,rateValue)
+        function results = runAnalysis(obj,peakPoints,rateType,rateValue,parIndex)
 
             if nargin < 3
                 rateType  = 'None';
             end
-            
+
+            if nargin < 5
+                parIndex = 1;
+            end
+
             if size(peakPoints,2) == 1
                 peakPoints = peakPoints';
             end
-            
+
             switch rateType
                 case 'StrainRate'
                     rate = rateValue;
@@ -51,21 +55,21 @@ classdef UniaxialMaterialAnalysis < OpenSeesAnalysis
                     rate = max(abs(peakPoints-[0 peakPoints(1:end-1)]));
                 otherwise
                     error('Unknown rateType');
-            end          
-            
+            end
+
             % Filenames
-            filename_input          = obj.scratchFile('runMaterialAnalysisInputFile.tcl');
-            filename_disp           = obj.scratchFile('runMaterialAnalysisPattern.txt');
-            filename_output_force   = obj.scratchFile('runMaterialAnalysisPatternForce.out');
-            filename_output_def     = obj.scratchFile('runMaterialAnalysisPatternDisp.out');
-            filename_output_stiff   = obj.scratchFile('runMaterialAnalysisPatternStiff.out');
-            
+            filename_input          = obj.scratchFile(sprintf('runMaterialAnalysisInputFile_%i.tcl',parIndex));
+            filename_disp           = obj.scratchFile(sprintf('runMaterialAnalysisPattern_%i.txt',parIndex));
+            filename_output_force   = obj.scratchFile(sprintf('runMaterialAnalysisPatternForce_%i.out',parIndex));
+            filename_output_def     = obj.scratchFile(sprintf('runMaterialAnalysisPatternDisp_%i.out',parIndex));
+            filename_output_stiff   = obj.scratchFile(sprintf('runMaterialAnalysisPatternStiff_%i.out',parIndex));
+
             % Generate imposed displacment history
             numbers = fillOutNumbers(peakPoints,rate);
             numbers = vertcat(numbers(1),numbers,numbers(end));
             numSteps = length(numbers)-2;
             save(filename_disp,'numbers','-ASCII');
-            
+
             % Create .tcl file
             fid = fopen(filename_input,'w');
             fprintf(fid,'model BasicBuilder -ndm 1 -ndf 1 \n');
@@ -93,11 +97,11 @@ classdef UniaxialMaterialAnalysis < OpenSeesAnalysis
             fprintf(fid,'if {$ok != 0} {exit 2} \n');
             fprintf(fid,'exit 1 \n');
             fclose(fid);
-            
+
             % Run OpenSees
             [status,result] = obj.runOpenSees(filename_input);
             results.textOutput  = result;
-                        
+
             switch status
                 case 1
                     results.status = 'Analysis Successful';
@@ -108,8 +112,8 @@ classdef UniaxialMaterialAnalysis < OpenSeesAnalysis
                 otherwise
                     fprintf('%s\n',result);
                     error('Analysis ended in an unknown manner, exit code = %i',status);
-            end            
-                        
+            end
+
             % Read Results
             results.disp = dlmread(filename_output_def);
             temp = dlmread(filename_output_force);
@@ -119,12 +123,12 @@ classdef UniaxialMaterialAnalysis < OpenSeesAnalysis
             catch
                 results.stiff = [];
             end
-            
+
             % Clean Folder
             if obj.deleteFilesAfterAnalysis
                 delete(filename_input,filename_disp,filename_output_force,...
                     filename_output_def,filename_output_stiff);
             end
-        end        
+        end
     end
 end

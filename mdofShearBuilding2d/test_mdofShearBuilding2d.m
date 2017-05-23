@@ -16,6 +16,9 @@ end
 results = struct;
 
 test_options
+if isempty(gcp)
+    parpool;
+end
 
 %##############################################################################%
 %% Equivalent lateral force procedure
@@ -164,7 +167,8 @@ end
 
 load('ground_motions.mat');
 SMT = FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
-ST  = SMT*SF2;
+% ST  = SMT*SF2;
+SF2 = ST/SMT;
 figure
 hold on
 legendentries = cell(nMotions,1);
@@ -204,14 +208,14 @@ for i = 1:nMotions
     end
     goodDrifts = ~isnan(maxDriftRatio);
 
-    plot(maxDriftRatio(goodDrifts)*100,ST(goodDrifts),'o-')
+    plot([0; maxDriftRatio(goodDrifts)*100],[0 ST(goodDrifts)],'o-')
     legendentries{i} = ground_motions(i).ID;
 
     if bldg.deleteFilesAfterAnalysis
         delete(gmfile)
     end
 end
-results.IDA = IDA;
+results.IDA = IDA; clear IDA;
 
 grid on
 xlim([0 15])
@@ -235,17 +239,24 @@ figure
 hold on
 a = zeros(nStories,1);b = zeros(nStories,1);c = zeros(nStories,1);
 legendentries = cell(nStories,1);
-for i = 1:nStories
+parfor i = 1:nStories
     materialDefinition = bldg.storySpringDefinition{i};
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
-    plotBackboneCurve(materialDefinition,spring(i).defl_u,false)
+    endpoint = spring(i).defl_y + spring(i).defl_p + spring(i).defl_pc;
+    anaobj = UniaxialMaterialAnalysis(materialDefinition);
+    rateType    = 'StrainRate';
+    rateValue   = 0.001;
+    backbone{i} = anaobj.runAnalysis([0 endpoint],rateType,rateValue,i);
     legendentries{i} = sprintf('Story %i',i);
     a(i) = spring(i).defl_y;
     b(i) = spring(i).defl_p;
     c(i) = spring(i).defl_pc;
 end
-
+results.backbone = backbone; clear backbone;
+for i = 1:nStories
+    plot(results.backbone{i}.disp,results.backbone{i}.force)
+end
 xlim([0 1.1*max(a+b+c)])
 title('Backbone curves')
 xlabel(sprintf('Deflection (%s)',bldg.units.length))
@@ -256,7 +267,10 @@ grid on
 %##############################################################################%
 %% Plot hysteretic curves
 if plotHysteretic
-for i = 1:nStories
+hysteretic_pos_env = cell(nStories,1);
+hysteretic_neg_env = cell(nStories,1);
+hysteretic = cell(nStories,1);
+parfor i = 1:nStories
     materialDefinition = bldg.storySpringDefinition{i};
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
@@ -267,15 +281,20 @@ for i = 1:nStories
     rateType    = 'StrainRate';
     rateValue   = peakPoints(2)/10;
 
-    results.hysteretic_pos_env = anaobj.runAnalysis([0 1.2*max(peakPoints)],rateType,rateValue);
-    results.hysteretic_neg_env = anaobj.runAnalysis([0 1.2*min(peakPoints)],rateType,rateValue);
-    results.hysteretic         = anaobj.runAnalysis(         peakPoints,rateType,rateValue);
+    hysteretic_pos_env{i} = anaobj.runAnalysis([0 1.2*max(peakPoints)],rateType,rateValue,i);
+    hysteretic_neg_env{i} = anaobj.runAnalysis([0 1.2*min(peakPoints)],rateType,rateValue,i);
+    hysteretic{i}         = anaobj.runAnalysis(         peakPoints,rateType,rateValue,i);
+end
+results.hysteretic_pos_env = hysteretic_pos_env; clear hysteretic_pos_env;
+results.hysteretic_neg_env = hysteretic_neg_env; clear hysteretic_neg_env;
+results.hysteretic = hysteretic; clear hysteretic;
 
+for i = 1:nStories
     figure
     hold on
-    plot(results.hysteretic_pos_env.disp,results.hysteretic_pos_env.force,'k--')
-    plot(results.hysteretic_neg_env.disp,results.hysteretic_neg_env.force,'k--')
-    plot(results.hysteretic.disp,results.hysteretic.force,'r')
+    plot(results.hysteretic_pos_env{i}.disp,results.hysteretic_pos_env{i}.force,'k--')
+    plot(results.hysteretic_neg_env{i}.disp,results.hysteretic_neg_env{i}.force,'k--')
+    plot(results.hysteretic{i}.disp,results.hysteretic{i}.force,'r')
     grid on
 
     title(sprintf('Spring for story %i',i))
