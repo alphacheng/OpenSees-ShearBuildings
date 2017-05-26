@@ -535,7 +535,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 spring(i).defl_y  = spring(i).V_y./spring(i).K0;                                                    % deflection at yield
                 spring(i).defl_p  = (spring(i).V_c-spring(i).V_y)./(spring(i).as*spring(i).K0);                     % pre-capping deflection
                 % spring(i).defl_pc = springGivens.C_pcp*spring(i).defl_p;                                            % post-capping deflection
-                spring(i).defl_pc = spring(i).V_c*tand(springGivens.theta_pc);
+                spring(i).defl_pc = spring(i).V_c/(springGivens.ad*spring(i).K0);
+                % spring(i).defl_pc = spring(i).V_c*tand(springGivens.theta_pc);
                 spring(i).defl_u  = springGivens.C_upc*(spring(i).defl_y + spring(i).defl_p + spring(i).defl_pc);   % ultimate deflection capacity
 
                 spring(i).definition = bilinearMaterialDefinition(i,spring(i));

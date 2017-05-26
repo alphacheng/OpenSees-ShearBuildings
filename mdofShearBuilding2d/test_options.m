@@ -1,6 +1,6 @@
 %##############################################################################%
 %% Define Building
-nStories = 5;
+nStories = 4;
 bldg = mdofShearBuilding2d(nStories);
 
 % Units
@@ -26,16 +26,17 @@ bldg.impFactor = 1;
 
 springGivens.as       =  0.01;  % strain hardening ratio
 springGivens.Lambda_S =  8.00;  % Cyclic deterioration parameter - strength
-springGivens.Lambda_K =  8.00;  % Cyclic deterioration parameter - stiffness
+springGivens.Lambda_K =  16.00;  % Cyclic deterioration parameter - stiffness
 springGivens.c_S      =  1.00;  % rate of deterioration - strength
 springGivens.c_K      =  1.00;  % rate of deterioration - stiffness
 springGivens.Res      =  0.30;  % residual strength ratio (relative to yield)
 springGivens.D        =  1.00;  % rate of cyclic deterioration
 springGivens.nFactor  =  0.00;  % elastic stiffness amplification factor
 springGivens.C_yc     =  0.90;  % ratio of yield strength to capping strength
-springGivens.C_pcp    =  8.00;  % ratio of post-capping deflection to pre-capping deflection
+springGivens.C_pcp    =  2.00;  % ratio of post-capping deflection to pre-capping deflection
 springGivens.C_upc    = 20.00;  % ratio of ultimate deflection to u_y + u_p + u_pc
 springGivens.theta_pc = 0.3;     % angle of post-capping stiffness (degrees)
+springGivens.ad       = 0.5;    % deterioration stiffness ratio
 
 springGivens.stiffnessSafety = 1.0;
 springGivens.strengthSafety  = 1.0;
@@ -52,7 +53,7 @@ bldg.deleteFilesAfterAnalysis = true;
 
 verbose     = true ;    % Toggle verbose output
 runPushover = true ;    % Toggle pushover analysis
-runIDA      = false ;    % Toggle IDA
+runIDA      = true ;    % Toggle IDA
 plotHysteretic = true; % Toggle plotting hysteretic curves
 
 % Equivalent lateral force options
