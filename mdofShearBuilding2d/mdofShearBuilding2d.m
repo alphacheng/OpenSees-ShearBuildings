@@ -83,6 +83,30 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             end
         end
 
+        function constructBuilding(obj,fid)
+        % CONSTRUCTBUILDING Create the OpenSees model based on current properties
+        %
+        %    CONSTRUCTBUILDING(obj,fid) writes the OpenSees code that represents
+        %       the model to the file specified by fid.
+        %
+
+            fprintf(fid,'model BasicBuilder -ndm 1 -ndf 1 \n');
+            for i = 0:obj.nStories
+                fprintf(fid,'node %i 0.0\n',i);
+            end
+            for i = 1:obj.nStories
+                fprintf(fid,'mass %i %g\n',i,obj.storyMass(i));
+            end
+            fprintf(fid,'fix 0 1 \n');
+            for i = 1:length(obj.storySpringDefinition)
+                fprintf(fid,'%s\n',obj.storySpringDefinition{i});
+            end
+            for i = 1:obj.nStories
+                fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1\n',i,i-1,i,i);
+            end
+
+        end %function:constructBuilding
+
         %% Analyses
         function [eigenvals,eigenvecs] = eigenvalues(obj)
             %% EIGENVALUES Eigenvalue analysis of system.
@@ -102,20 +126,9 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             filename_vecs  = obj.scratchFile('mdofShearBuilding2d_vecs.out');
 
             fid = fopen(filename_input,'w');
-            fprintf(fid,'model BasicBuilder -ndm 1 -ndf 1 \n');
-            for i = 0:obj.nStories
-                fprintf(fid,'node %i 0.0\n',i);
-            end
-            for i = 1:obj.nStories
-                fprintf(fid,'mass %i %g\n',i,obj.storyMass(i));
-            end
-            fprintf(fid,'fix 0 1 \n');
-            for i = 1:length(obj.storySpringDefinition)
-                fprintf(fid,'%s\n',obj.storySpringDefinition{i});
-            end
-            for i = 1:obj.nStories
-                fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1\n',i,i-1,i,i);
-            end
+
+            obj.constructBuilding(fid)
+
             fprintf(fid,'set eigs [eigen -fullGenLapack %i]\n',obj.nStories);
             fprintf(fid,'set eigenvalues $eigs\n');
             fprintf(fid,'set vecs {}\n');
@@ -199,20 +212,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             % Create .tcl file
             fid = fopen(filename_input,'w');
-            fprintf(fid,'model BasicBuilder -ndm 1 -ndf 1 \n');
-            for i = 0:obj.nStories
-                fprintf(fid,'node %i 0.0\n',i);
-            end
-            for i = 1:obj.nStories
-                fprintf(fid,'mass %i %g\n',i,obj.storyMass(i));
-            end
-            fprintf(fid,'fix 0 1 \n');
-            for i = 1:length(obj.storySpringDefinition)
-                fprintf(fid,'%s\n',obj.storySpringDefinition{i});
-            end
-            for i = 1:obj.nStories
-                fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1\n',i,i-1,i,i);
-            end
+
+            obj.constructBuilding(fid)
 
             fprintf(fid,'timeSeries Linear 1\n');
             fprintf(fid,'pattern Plain 1 1 {\n');
@@ -356,24 +357,9 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             % Create .tcl file
             fid = fopen(filename_input,'w');
-            fprintf(fid,'model BasicBuilder -ndm 1 -ndf 1 \n');
 
             writeFunction_updateRayleighDamping(fid)
-
-            for i = 0:obj.nStories
-                fprintf(fid,'node %i 0.0\n',i);
-            end
-            for i = 1:obj.nStories
-                fprintf(fid,'mass %i %g\n',i,obj.storyMass(i));
-            end
-            fprintf(fid,'fix 0 1 \n');
-            for i = 1:length(obj.storySpringDefinition)
-                fprintf(fid,'%s\n',obj.storySpringDefinition{i});
-            end
-            for i = 1:obj.nStories
-                fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1\n',i,i-1,i,i);
-            end
-
+            obj.constructBuilding(fid)
 
             fprintf(fid,'timeSeries Path 1 -dt %g -filePath {%s} -factor %g\n',dt,groundMotionFilename,SF);
             fprintf(fid,'pattern UniformExcitation 1 1 -accel 1\n');
