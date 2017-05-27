@@ -593,8 +593,8 @@ function writeFunction_updateRayleighDamping(fid)
     fprintf(fid,'    # the current state of the structure\n');
     fprintf(fid,'    #\n');
     fprintf(fid,'    # Input Parameters:\n');
-    fprintf(fid,'    # modeA, modeB - modes that will have perscribed damping ratios\n');
-    fprintf(fid,'    # ratioA, ratioB - damping ratios perscribed at the specified modes\n');
+    fprintf(fid,'    # modeA, modeB - modes that will have prescribed damping ratios\n');
+    fprintf(fid,'    # ratioA, ratioB - damping ratios prescribed at the specified modes\n');
     fprintf(fid,'\n');
     fprintf(fid,'    # Get natural frequencies at the desired modes\n');
     fprintf(fid,'    if { $modeA > $modeB } {\n');
