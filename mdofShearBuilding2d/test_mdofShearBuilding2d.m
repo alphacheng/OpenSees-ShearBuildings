@@ -240,7 +240,7 @@ hold on
 a = zeros(nStories,1);b = zeros(nStories,1);c = zeros(nStories,1);
 legendentries = cell(nStories,1);
 parfor i = 1:nStories
-    materialDefinition = bldg.storySpringDefinition{i};
+    materialDefinition = spring(i).definition;
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
     endpoint = spring(i).defl_y + spring(i).defl_p + spring(i).defl_pc;
@@ -271,7 +271,7 @@ hysteretic_pos_env = cell(nStories,1);
 hysteretic_neg_env = cell(nStories,1);
 hysteretic = cell(nStories,1);
 parfor i = 1:nStories
-    materialDefinition = bldg.storySpringDefinition{i};
+    materialDefinition = spring(i).definition;
     matTagLoc = strfind(materialDefinition,num2str(i));
     materialDefinition(matTagLoc(1)) = '1';
 
