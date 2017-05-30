@@ -99,6 +99,11 @@ title('Pushover analysis')
 switch results.pushover.exitStatus
 case 'Analysis Successful'
     calcOverstr = results.pushover.peakShear/results.ELF.baseShear;
+    prePeakIndex = results.pushover.roofDrift < results.pushover.peakTotalDrift(nStories);
+    designBaseShearDrift = interp1(results.pushover.baseShear(prePeakIndex),results.pushover.roofDrift(prePeakIndex),results.ELF.baseShear);
+    effectiveYieldDrift = calcOverstr*designBaseShearDrift;
+    periodBasedDuctility = effectiveYieldDrift/results.pushover.peak80TotalDrift(nStories);
+
     fprintf('Calculated overstrength = %g\n',calcOverstr)
 
     axis manual
@@ -172,7 +177,8 @@ SF2 = ST/SMT;
 figure
 hold on
 legendentries = cell(nMotions,1);
-goodDrifts = false(length(SF2));
+goodDrifts = false(nMotions,length(SF2));
+SCT = zeros(nMotions,1);
 IDA = cell(nMotions,length(SF2));
 for i = 1:nMotions
     gmfile = bldg.scratchFile(sprintf('acc%s.acc',ground_motions(i).ID));
@@ -207,9 +213,10 @@ for i = 1:nMotions
         end
 
     end
-    goodDrifts(:,i) = ~isnan(maxDriftRatio);
+    goodDrifts(i,:) = ~isnan(maxDriftRatio);
+    SCT(i) = ST(find(maxDriftRatio > collapseDriftRatio,1));
 
-    plot([0; maxDriftRatio(goodDrifts(:,i))*100],[0 ST(goodDrifts(:,i))],'o-')
+    plot([0; maxDriftRatio(goodDrifts(i,:))*100],[0 ST(goodDrifts(i,:))],'o-')
     legendentries{i} = ground_motions(i).ID;
 
     if bldg.deleteFilesAfterAnalysis
@@ -218,12 +225,29 @@ for i = 1:nMotions
 end
 results.IDA = IDA; clear IDA;
 goodRatio = sum(sum(goodDrifts))/(length(SF2)*nMotions);
+SCT_hat = median(SCT);
+CMR = SCT_hat/SMT;
+beta_total = FEMAP695_beta_total(rating_DR,rating_TD,rating_MDL,periodBasedDuctility);
+ACMR = FEMAP695_ACMRxx(beta_total,collapseProbability);
+if ACMR/CMR < 1
+    R_accepted = false;
+    R_text = 'unacceptable';
+else
+    R_accepted = true;
+    R_text = 'acceptable';
+end
+
+plot(xlim,[SCT_hat,SCT_hat],'k--');
+plot(xlim,[SMT,SMT],'b--');
+legendentries{end+1} = '$\hat{S}_{CT}$';
+legendentries{end+1} = '$S_{MT}$';
 
 grid on
 xlim([0 15])
 xlabel('Maximum story drift ratio (%)')
 ylabel('Ground motion intensity, S_T (g)')
-legend(legendentries)
+leg = legend(legendentries);
+leg.Interpreter = 'latex';
 
 % Plot sample response history
 plotSampleResponse(results.IDA{1,5})
@@ -231,6 +255,7 @@ plotSampleResponse(results.IDA{1,5})
 if verbose
     ida_time = toc(ida_tic);
     fprintf('%.3g%% of analyses completed successfully.\n',goodRatio*100);
+    fprintf('ACMR = %.4g, CMR = %.4g, R is %s\n',ACMR,CMR,R_text);
     fprintf('Incremental dynamic analysis took %g seconds.\n',ida_time);
 end
 
