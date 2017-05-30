@@ -172,6 +172,7 @@ SF2 = ST/SMT;
 figure
 hold on
 legendentries = cell(nMotions,1);
+goodDrifts = false(length(SF2));
 IDA = cell(nMotions,length(SF2));
 for i = 1:nMotions
     gmfile = bldg.scratchFile(sprintf('acc%s.acc',ground_motions(i).ID));
@@ -206,9 +207,9 @@ for i = 1:nMotions
         end
 
     end
-    goodDrifts = ~isnan(maxDriftRatio);
+    goodDrifts(:,i) = ~isnan(maxDriftRatio);
 
-    plot([0; maxDriftRatio(goodDrifts)*100],[0 ST(goodDrifts)],'o-')
+    plot([0; maxDriftRatio(goodDrifts(:,i))*100],[0 ST(goodDrifts(:,i))],'o-')
     legendentries{i} = ground_motions(i).ID;
 
     if bldg.deleteFilesAfterAnalysis
@@ -216,6 +217,7 @@ for i = 1:nMotions
     end
 end
 results.IDA = IDA; clear IDA;
+goodRatio = sum(sum(goodDrifts))/(length(SF2)*nMotions);
 
 grid on
 xlim([0 15])
@@ -228,6 +230,7 @@ plotSampleResponse(results.IDA{1,5})
 
 if verbose
     ida_time = toc(ida_tic);
+    fprintf('%.3g%% of analyses completed successfully.\n',goodRatio*100);
     fprintf('Incremental dynamic analysis took %g seconds.\n',ida_time);
 end
 
