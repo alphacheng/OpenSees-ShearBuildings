@@ -21,6 +21,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         pushover_stepSize   = 0.001;
         pushover_maxDrift   = 6.0;
 
+        allowAlternativeAlgorithms = true;
+
         % Equivalent Lateral Force procedure
         storyHeight
 
@@ -84,11 +86,11 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         end
 
         function constructBuilding(obj,fid)
-        % CONSTRUCTBUILDING Create the OpenSees model based on current properties
-        %
-        %    CONSTRUCTBUILDING(obj,fid) writes the OpenSees code that represents
-        %       the model to the file specified by fid.
-        %
+            % CONSTRUCTBUILDING Create the OpenSees model based on current properties
+            %
+            %    CONSTRUCTBUILDING(obj,fid) writes the OpenSees code that represents
+            %       the model to the file specified by fid.
+            %
 
             fprintf(fid,'model BasicBuilder -ndm 1 -ndf 1 \n');
             for i = 0:obj.nStories
@@ -230,7 +232,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             fprintf(fid,'system UmfPack \n');
             fprintf(fid,'constraints Penalty 1.0e12 1.0e12 \n');
             fprintf(fid,'test NormDispIncr 1e-5 10 1 \n');
-            fprintf(fid,'algorithm Newton \n');
             fprintf(fid,'numberer RCM \n');
             fprintf(fid,'integrator DisplacementControl %i 1 %g\n',obj.controlStory1,obj.pushover_stepSize);
             fprintf(fid,'analysis Static \n');
@@ -245,7 +246,12 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     fprintf(fid,'set currentLoad [getTime]\n');
                     fprintf(fid,'set maxLoad $currentLoad\n');
                     fprintf(fid,'while { $currentLoad >= [expr %g*$maxLoad] } {\n',targetPostPeakRatio);
+                    fprintf(fid,'    algorithm Newton \n');
                     fprintf(fid,'    set ok [analyze 1]\n');
+                    fprintf(fid,'    if { $ok != 0 } {\n');
+                    fprintf(fid,'        algorithm KrylovNewton\n');
+                    fprintf(fid,'        set ok [analyze 1]\n');
+                    fprintf(fid,'    }\n');
                     fprintf(fid,'    if { $ok != 0 } {\n');
                     fprintf(fid,'        exit 2\n');
                     fprintf(fid,'    }\n');
@@ -384,7 +390,14 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             fprintf(fid,'set currentTime [getTime]\n');
             fprintf(fid,'while { $currentTime < %g } {\n',tend);
+            fprintf(fid,'    algorithm Newton \n');
             fprintf(fid,'    set ok [analyze 1 %g]\n',dt);
+            if obj.allowAlternativeAlgorithms
+                fprintf(fid,'    if { $ok != 0 } {\n');
+                fprintf(fid,'        algorithm KrylovNewton\n');
+                fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
+                fprintf(fid,'    }\n');
+            end
             fprintf(fid,'    if { $ok != 0 } {\n');
             fprintf(fid,'        exit 2\n');
             fprintf(fid,'    }\n');
