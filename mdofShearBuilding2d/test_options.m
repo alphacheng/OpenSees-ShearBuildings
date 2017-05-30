@@ -24,19 +24,19 @@ bldg.deflAmplFact = 8;
 bldg.overstrengthFactor = 3;
 bldg.impFactor = 1;
 
-springGivens.as       =  0.01;  % strain hardening ratio
-springGivens.Lambda_S =  8.00;  % Cyclic deterioration parameter - strength
-springGivens.Lambda_K =  16.00;  % Cyclic deterioration parameter - stiffness
+springGivens.as       =  0.05;  % strain hardening ratio
+springGivens.Lambda_S =  10.00;  % Cyclic deterioration parameter - strength
+springGivens.Lambda_K =  10.00;  % Cyclic deterioration parameter - stiffness
 springGivens.c_S      =  1.00;  % rate of deterioration - strength
 springGivens.c_K      =  1.00;  % rate of deterioration - stiffness
 springGivens.Res      =  0.30;  % residual strength ratio (relative to yield)
 springGivens.D        =  1.00;  % rate of cyclic deterioration
 springGivens.nFactor  =  0.00;  % elastic stiffness amplification factor
-springGivens.C_yc     =  0.90;  % ratio of yield strength to capping strength
+springGivens.C_yc     =  0.80;  % ratio of yield strength to capping strength
 springGivens.C_pcp    =  2.00;  % ratio of post-capping deflection to pre-capping deflection
 springGivens.C_upc    = 20.00;  % ratio of ultimate deflection to u_y + u_p + u_pc
 springGivens.theta_pc = 0.3;     % angle of post-capping stiffness (degrees)
-springGivens.ad       = 0.5;    % deterioration stiffness ratio
+springGivens.ad       = 0.15;    % deterioration stiffness ratio
 
 springGivens.stiffnessSafety = 1.0;
 springGivens.strengthSafety  = 1.0;
@@ -45,6 +45,10 @@ springGivens.enforceMinimumStiffness = false;
 springGivens.enforceMinimumStrength = false;
 springGivens.minimumRatio = 0.7;
 
+collapseProbability = 0.2;
+rating_DR = 'C';
+rating_TD = 'C';
+rating_MDL = 'C';
 
 %##############################################################################%
 %% Analysis Options
@@ -54,7 +58,7 @@ bldg.deleteFilesAfterAnalysis = true;
 verbose     = true ;    % Toggle verbose output
 runPushover = true ;    % Toggle pushover analysis
 runIDA      = true ;    % Toggle IDA
-plotHysteretic = true; % Toggle plotting hysteretic curves
+plotHysteretic = false; % Toggle plotting hysteretic curves
 
 % Equivalent lateral force options
 iterate    = false;             % Select whether to do iteration
@@ -68,5 +72,6 @@ bldg.pushover_maxDrift = min(bldg.storyHeight);
 
 % Incremental dynamic analysis options
 nMotions = 7;                              % Number of ground motions to analyze
+collapseDriftRatio = 0.05;      % Story drift ratio that defines collapse
 ST = 0.25:0.25:8;
 % SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
