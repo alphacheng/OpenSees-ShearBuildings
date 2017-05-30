@@ -563,7 +563,11 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %
 
             if nargin == 2
-                dt = max(diff(results.time));
+                if isfield(results,'time')
+                    dt = max(diff(results.time));
+                else
+                    error('Undefined timestep.')
+                end
             end
 
             cumHeights = cumsum(obj.storyHeight);
