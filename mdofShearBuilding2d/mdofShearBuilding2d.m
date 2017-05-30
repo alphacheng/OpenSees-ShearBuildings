@@ -253,6 +253,10 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     fprintf(fid,'        set ok [analyze 1]\n');
                     fprintf(fid,'    }\n');
                     fprintf(fid,'    if { $ok != 0 } {\n');
+                    fprintf(fid,'        algorithm ModifiedNewton\n');
+                    fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
+                    fprintf(fid,'    }\n');
+                    fprintf(fid,'    if { $ok != 0 } {\n');
                     fprintf(fid,'        exit 2\n');
                     fprintf(fid,'    }\n');
                     fprintf(fid,'    set currentLoad [getTime]\n');
@@ -395,6 +399,10 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             if obj.allowAlternativeAlgorithms
                 fprintf(fid,'    if { $ok != 0 } {\n');
                 fprintf(fid,'        algorithm KrylovNewton\n');
+                fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
+                fprintf(fid,'    }\n');
+                fprintf(fid,'    if { $ok != 0 } {\n');
+                fprintf(fid,'        algorithm ModifiedNewton\n');
                 fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
                 fprintf(fid,'    }\n');
             end
