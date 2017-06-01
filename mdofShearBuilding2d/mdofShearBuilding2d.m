@@ -452,7 +452,19 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         end %function:responseHistory
 
         function results = ELFanalysis(obj)
-            %% Equivalent Lateral Force procedure (ASCE 7-10)
+            %% ELFANALYSIS Equivalent Lateral Force procedure (ASCE 7-10)
+            %
+            %   results = ELFANALYSIS(obj) generates the design story forces,
+            %       shears, and allowable story drifts for the information in obj.
+            %
+            %   The struct results contains the following fields:
+            %
+            %   seismicResponseCoefficient      ; C_s (Section 12.8.1.1)
+            %   baseShear                       ; V (Section 12.8.1)
+            %   storyForce                      ; F_x (Section 12.8.3)
+            %   storyShear                      ; V_x (Section 12.8.4)
+            %   allowableDrift                  ; Delta_a (Table 12.12-1)
+            %
 
             results = struct;
 
