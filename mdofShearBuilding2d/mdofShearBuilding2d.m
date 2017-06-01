@@ -1,36 +1,44 @@
 classdef mdofShearBuilding2d < OpenSeesAnalysis
 
     properties
-        nStories
-        g
-        units
+    % General settings
 
-        storyMass
-        storyStiffness
-        storySpringDefinition
+        g                               % Acceleration due to gravity
+        units                           % Units used for labels
 
-        damping_ModeA  = 1;
-        damping_ModeB  = 3;
-        damping_RatioA = 0.02;
-        damping_RatioB = 0.02;
+    % Building defintion
 
-        fundamentalPeriod
+        nStories                        % Number of stories
 
-        controlStory = 'roof';
+        storyMass                       % Mass of each story
+        storyHeight                     % Height of each story
+        storyStiffness                  % Elastic stiffness of each story
+        storySpringDefinition           % OpenSees uniaxial material definition
 
-        pushover_stepSize   = 0.001;
-        pushover_maxDrift   = 6.0;
+        fundamentalPeriod               % Fundamental period of the structure
+
+    % Pushover analysis options
+
+        controlStory = 'roof';          % Control story for the pushover analysis
+        pushover_stepSize   = 0.001;    % Step size for the pushover analysis
+        pushover_maxDrift   = 6.0;      % Pushover analysis will abort if the drift of the control story reaches this value
+
+    % Response history options
+
+        damping_ModeA  = 1;             % Mode A for rayleigh damping
+        damping_ModeB  = 3;             % Mode B for rayleigh damping
+        damping_RatioA = 0.02;          % Damping ratio for mode A
+        damping_RatioB = 0.02;          % Damping ratio for mode B
 
         allowAlternativeAlgorithms = true;
 
-        % Equivalent Lateral Force procedure
-        storyHeight
+    % Equivalent Lateral Force options
 
-        seismicDesignCategory
-        impFactor
-        respModCoeff
-        deflAmplFact
-        overstrengthFactor
+        seismicDesignCategory       % Seismic design category (Section )
+        impFactor                   % Seismic importance factor (Section )
+        respModCoeff                % Response modification coefficient (Section )
+        deflAmplFact                % Deflection amplification factor (Section )
+        overstrengthFactor          % Overstrength factor (Section )
 
     end
 
