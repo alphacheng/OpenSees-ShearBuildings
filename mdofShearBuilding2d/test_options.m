@@ -71,7 +71,8 @@ bldg.pushover_stepSize = 0.001;
 bldg.pushover_maxDrift = min(bldg.storyHeight);
 
 % Incremental dynamic analysis options
-nMotions = 7;                              % Number of ground motions to analyze
-collapseDriftRatio = 0.05;      % Story drift ratio that defines collapse
+nMotions = 14;                              % Number of ground motions to analyze
+tExtra = 5;                                 % Extra analysis time after end of ground motion
+collapseDriftRatio = 0.05;                  % Story drift ratio that defines collapse
 ST = 0.25:0.25:8;
 % SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve

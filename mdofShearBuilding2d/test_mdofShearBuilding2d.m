@@ -189,7 +189,7 @@ for i = 1:nMotions
     fclose(gmfid);
     dt      = ground_motions(i).dt;
     SF1     = FEMAP695_SF1(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
-    tend    = max(ground_motions(i).time) + 5;
+    tend    = max(ground_motions(i).time) + tExtra;
 
     % Vary scale factor
     maxDriftRatio = zeros(length(SF2),1);
