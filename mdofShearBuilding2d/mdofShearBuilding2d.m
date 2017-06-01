@@ -1,4 +1,5 @@
 classdef mdofShearBuilding2d < OpenSeesAnalysis
+% MDOFSHEARBUILDING2D 
 
     properties
     % General settings
@@ -22,6 +23,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         controlStory = 'roof';          % Control story for the pushover analysis
         pushover_stepSize   = 0.001;    % Step size for the pushover analysis
         pushover_maxDrift   = 6.0;      % Pushover analysis will abort if the drift of the control story reaches this value
+
+        pushoverOptions
 
     % Response history options
 
@@ -50,6 +53,21 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             % obj = mdofShearBuilding2d(nStories)
             %
             obj.nStories = nStories;
+
+            obj.pushoverOptions.constraints.type = 'Plain';
+            obj.pushoverOptions.constraints.penalty.alphaS = 1.0e12;
+            obj.pushoverOptions.constraints.penalty.alphaM = 1.0e12;
+
+            obj.pushoverOptions.test.type       = 'NormDispIncr';
+            obj.pushoverOptions.test.tolerance  = [1e-5,1e-4,1e-3];
+            obj.pushoverOptions.test.iterations = 10;
+            obj.pushoverOptions.test.print      = true;
+            obj.pushoverOptions.test.normType   = 2;
+
+            obj.pushoverOptions.algorithm.initial   = 'Newton';
+            obj.pushoverOptions.algorithm.fallback1 = 'KrylovNewton';
+            obj.pushoverOptions.algorithm.fallback2 = 'ModifiedNewton';
+
         end
 
         %% Set functions
@@ -238,14 +256,54 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             fprintf(fid,'recorder Element -file {%s} -eleRange 1 %i force \n',filename_output_force,obj.nStories);
             fprintf(fid,'record \n');
             fprintf(fid,'system UmfPack \n');
-            fprintf(fid,'constraints Penalty 1.0e12 1.0e12 \n');
-            fprintf(fid,'test NormDispIncr 1e-5 10 1 \n');
+            switch lower(obj.pushoverOptions.constraints.type)
+                case 'plain'
+                    fprintf(fid,'constraints Plain\n');
+                case 'penalty'
+                    fprintf(fid,'constraints Penalty %g %g\n',obj.pushoverOptions.constraints.penalty.alphaS,...
+                                                              obj.pushoverOptions.constraints.penalty.alphaM);
+                otherwise
+                    error('Unknown constraints type: %s',obj.pushoverOptions.constraints.type)
+            end
+            testArgs = cell(length(obj.pushoverOptions.test.tolerance),1);
+            switch lower(obj.pushoverOptions.test.type)
+                case 'normdispincr'
+                    obj.pushoverOptions.test.type = 'NormDispIncr';
+                case 'energyincr'
+                    obj.pushoverOptions.test.type = 'EnergyIncr';
+                otherwise
+                    error('Unknown test method: %s',obj.pushoverOptions.test.type);
+            end
+            for i = 1:length(obj.pushoverOptions.test.tolerance)
+                testArgs{i} = sprintf('%s %g %i %i %i',obj.pushoverOptions.test.type,...
+                                                       obj.pushoverOptions.test.tolerance(i),...
+                                                       obj.pushoverOptions.test.iterations,...
+                                                       obj.pushoverOptions.test.print,...
+                                                       obj.pushoverOptions.test.normType);
+            end
+
             fprintf(fid,'numberer RCM \n');
             fprintf(fid,'integrator DisplacementControl %i 1 %g\n',obj.controlStory1,obj.pushover_stepSize);
             fprintf(fid,'analysis Static \n');
 
+            fields = fieldnames(obj.pushoverOptions.algorithm);
+            algorithm = cell(length(fields),1);
+            for i = 1:length(fields)
+                switch lower(obj.pushoverOptions.algorithm.(fields{i}))
+                    case 'newton'
+                        algorithm{i} = 'Newton';
+                    case 'krylovnewton'
+                        algorithm{i} = 'KrylovNewton';
+                    case 'modifiednewton'
+                        algorithm{i} = 'ModifiedNewton';
+                    otherwise
+                        error('Unknown algorithm: %s',obj.pushoverOptions.algorithm.(fields{i}));
+                end
+            end
+
             switch lower(type)
                 case 'targetdrift'
+                    fprintf(fid,'algorithm Newton\n');
                     fprintf(fid,'set ok [analyze %i]\n',ceil(targetDrift/obj.pushover_stepSize));
                     fprintf(fid,'if { $ok != 0 } {\n');
                     fprintf(fid,'    exit 1\n');
@@ -254,16 +312,19 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     fprintf(fid,'set currentLoad [getTime]\n');
                     fprintf(fid,'set maxLoad $currentLoad\n');
                     fprintf(fid,'while { $currentLoad >= [expr %g*$maxLoad] } {\n',targetPostPeakRatio);
-                    fprintf(fid,'    algorithm Newton \n');
+                    fprintf(fid,'    algorithm %s\n',algorithm{1});
+                    fprintf(fid,'    test %s\n',testArgs{1});
                     fprintf(fid,'    set ok [analyze 1]\n');
-                    fprintf(fid,'    if { $ok != 0 } {\n');
-                    fprintf(fid,'        algorithm KrylovNewton\n');
-                    fprintf(fid,'        set ok [analyze 1]\n');
-                    fprintf(fid,'    }\n');
-                    fprintf(fid,'    if { $ok != 0 } {\n');
-                    fprintf(fid,'        algorithm ModifiedNewton\n');
-                    fprintf(fid,'        set ok [analyze 1]\n');
-                    fprintf(fid,'    }\n');
+                    for i = 1:length(testArgs)
+                        if i == 1; k = 2; else; k = 1; end
+                        for j = k:length(algorithm)
+                            fprintf(fid,'    if { $ok != 0 } {\n');
+                            fprintf(fid,'        algorithm %s\n',algorithm{j});
+                            fprintf(fid,'        test %s\n',testArgs{i});
+                            fprintf(fid,'        set ok [analyze 1]\n');
+                            fprintf(fid,'    }\n');
+                        end
+                    end
                     fprintf(fid,'    if { $ok != 0 } {\n');
                     fprintf(fid,'        exit 2\n');
                     fprintf(fid,'    }\n');
