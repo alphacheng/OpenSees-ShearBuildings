@@ -7,7 +7,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         g                               % Acceleration due to gravity
         units                           % Units used for labels
 
-    % Building defintion
+    % Building definition
 
         nStories                        % Number of stories
 
@@ -51,8 +51,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         damping_ModeB  = 3;             % Mode B for rayleigh damping
         damping_RatioA = 0.02;          % Damping ratio for mode A
         damping_RatioB = 0.02;          % Damping ratio for mode B
-
-        allowAlternativeAlgorithms = true;
 
     % Equivalent Lateral Force options
 
@@ -467,16 +465,14 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             fprintf(fid,'while { $currentTime < %g } {\n',tend);
             fprintf(fid,'    algorithm Newton \n');
             fprintf(fid,'    set ok [analyze 1 %g]\n',dt);
-            if obj.allowAlternativeAlgorithms
-                fprintf(fid,'    if { $ok != 0 } {\n');
-                fprintf(fid,'        algorithm KrylovNewton\n');
-                fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
-                fprintf(fid,'    }\n');
-                fprintf(fid,'    if { $ok != 0 } {\n');
-                fprintf(fid,'        algorithm ModifiedNewton\n');
-                fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
-                fprintf(fid,'    }\n');
-            end
+            fprintf(fid,'    if { $ok != 0 } {\n');
+            fprintf(fid,'        algorithm KrylovNewton\n');
+            fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
+            fprintf(fid,'    }\n');
+            fprintf(fid,'    if { $ok != 0 } {\n');
+            fprintf(fid,'        algorithm ModifiedNewton\n');
+            fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
+            fprintf(fid,'    }\n');
             fprintf(fid,'    if { $ok != 0 } {\n');
             fprintf(fid,'        exit 2\n');
             fprintf(fid,'    }\n');
