@@ -24,8 +24,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         pushover_stepSize   = 0.001;    % Step size for the pushover analysis
         pushover_maxDrift   = 6.0;      % Pushover analysis will abort if the drift of the control story reaches this value
 
-        % pushoverOptions - struct containing settings for pushover analysis
-        %   Defaults for pushoverOptions are set by the constructor.
+        % optionsPushover - struct containing settings for pushover analysis
+        %   Defaults for optionsPushover are set by the constructor.
         %
         % Contains the following fields:
         %   constraints - struct containing settings for the constraints
@@ -36,14 +36,14 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         %
         %   test - struct containing settings for the test method
         %       type        - specifies the test method to use; select from 'NormDispIncr' and 'EnergyIncr'
-        %       tolerance   - tolerance for the test method
+        %       tolerance   - tolerances for the tests; if switching algorithms fails, analysis will cycle through these
         %       iterations  - max iterations
         %       print       - print flag
         %       normType    - norm type
         %
         %   algorithm - cell vector containing the names of algorithms to be used
         %
-        pushoverOptions
+        optionsPushover
 
     % Response history options
 
@@ -71,17 +71,17 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %
             obj.nStories = nStories;
 
-            obj.pushoverOptions.constraints.type = 'Plain';
-            obj.pushoverOptions.constraints.penalty.alphaS = 1.0e12;
-            obj.pushoverOptions.constraints.penalty.alphaM = 1.0e12;
+            obj.optionsPushover.constraints.type = 'Plain';
+            obj.optionsPushover.constraints.penalty.alphaS = 1.0e12;
+            obj.optionsPushover.constraints.penalty.alphaM = 1.0e12;
 
-            obj.pushoverOptions.test.type       = 'NormDispIncr';
-            obj.pushoverOptions.test.tolerance  = [1e-5,1e-4,1e-3];
-            obj.pushoverOptions.test.iterations = 10;
-            obj.pushoverOptions.test.print      = 1;
-            obj.pushoverOptions.test.normType   = 2;
+            obj.optionsPushover.test.type       = 'NormDispIncr';
+            obj.optionsPushover.test.tolerance  = [1e-5,1e-4,1e-3];
+            obj.optionsPushover.test.iterations = 10;
+            obj.optionsPushover.test.print      = 1;
+            obj.optionsPushover.test.normType   = 2;
 
-            obj.pushoverOptions.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
+            obj.optionsPushover.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
 
         end
 
@@ -271,30 +271,30 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             fprintf(fid,'recorder Element -file {%s} -eleRange 1 %i force \n',filename_output_force,obj.nStories);
             fprintf(fid,'record \n');
             fprintf(fid,'system UmfPack \n');
-            switch lower(obj.pushoverOptions.constraints.type)
+            switch lower(obj.optionsPushover.constraints.type)
                 case 'plain'
                     fprintf(fid,'constraints Plain\n');
                 case 'penalty'
-                    fprintf(fid,'constraints Penalty %g %g\n',obj.pushoverOptions.constraints.penalty.alphaS,...
-                                                              obj.pushoverOptions.constraints.penalty.alphaM);
+                    fprintf(fid,'constraints Penalty %g %g\n',obj.optionsPushover.constraints.penalty.alphaS,...
+                                                              obj.optionsPushover.constraints.penalty.alphaM);
                 otherwise
-                    error('Unknown constraints type: %s',obj.pushoverOptions.constraints.type)
+                    error('Unknown constraints type: %s',obj.optionsPushover.constraints.type)
             end
-            testArgs = cell(length(obj.pushoverOptions.test.tolerance),1);
-            switch lower(obj.pushoverOptions.test.type)
+            testArgs = cell(length(obj.optionsPushover.test.tolerance),1);
+            switch lower(obj.optionsPushover.test.type)
                 case 'normdispincr'
-                    obj.pushoverOptions.test.type = 'NormDispIncr';
+                    obj.optionsPushover.test.type = 'NormDispIncr';
                 case 'energyincr'
-                    obj.pushoverOptions.test.type = 'EnergyIncr';
+                    obj.optionsPushover.test.type = 'EnergyIncr';
                 otherwise
-                    error('Unknown test method: %s',obj.pushoverOptions.test.type);
+                    error('Unknown test method: %s',obj.optionsPushover.test.type);
             end
-            for i = 1:length(obj.pushoverOptions.test.tolerance)
-                testArgs{i} = sprintf('%s %g %i %i %i',obj.pushoverOptions.test.type,...
-                                                       obj.pushoverOptions.test.tolerance(i),...
-                                                       obj.pushoverOptions.test.iterations,...
-                                                       obj.pushoverOptions.test.print,...
-                                                       obj.pushoverOptions.test.normType);
+            for i = 1:length(obj.optionsPushover.test.tolerance)
+                testArgs{i} = sprintf('%s %g %i %i %i',obj.optionsPushover.test.type,...
+                                                       obj.optionsPushover.test.tolerance(i),...
+                                                       obj.optionsPushover.test.iterations,...
+                                                       obj.optionsPushover.test.print,...
+                                                       obj.optionsPushover.test.normType);
             end
 
             fprintf(fid,'numberer RCM \n');
@@ -312,14 +312,14 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     fprintf(fid,'set currentLoad [getTime]\n');
                     fprintf(fid,'set maxLoad $currentLoad\n');
                     fprintf(fid,'while { $currentLoad >= [expr %g*$maxLoad] } {\n',targetPostPeakRatio);
-                    fprintf(fid,'    algorithm %s\n',obj.pushoverOptions.algorithm{1});
+                    fprintf(fid,'    algorithm %s\n',obj.optionsPushover.algorithm{1});
                     fprintf(fid,'    test %s\n',testArgs{1});
                     fprintf(fid,'    set ok [analyze 1]\n');
                     for i = 1:length(testArgs)
                         if i == 1; k = 2; else; k = 1; end
                         for j = k:length(algorithm)
                             fprintf(fid,'    if { $ok != 0 } {\n');
-                            fprintf(fid,'        algorithm %s\n',obj.pushoverOptions.algorithm{j});
+                            fprintf(fid,'        algorithm %s\n',obj.optionsPushover.algorithm{j});
                             fprintf(fid,'        test %s\n',testArgs{i});
                             fprintf(fid,'        set ok [analyze 1]\n');
                             fprintf(fid,'    }\n');
