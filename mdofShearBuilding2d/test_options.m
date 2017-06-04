@@ -1,6 +1,6 @@
 %##############################################################################%
 %% Define Building
-nStories = 4;
+nStories = 9;
 bldg = mdofShearBuilding2d(nStories);
 
 % Units
@@ -69,6 +69,31 @@ diffTol = 1e-3;             % Tolerance for iteration
 % Pushover analysis options
 bldg.pushover_stepSize = 0.001;
 bldg.pushover_maxDrift = min(bldg.storyHeight);
+
+bldg.optionsPushover.constraints.type = 'Plain';
+bldg.optionsPushover.constraints.penalty.alphaS = 1.0e12;
+bldg.optionsPushover.constraints.penalty.alphaM = 1.0e12;
+
+bldg.optionsPushover.test.type       = 'NormDispIncr';
+bldg.optionsPushover.test.tolerance  = [1e-5,1e-4,1e-3];
+bldg.optionsPushover.test.iterations = 10;
+bldg.optionsPushover.test.print      = 1;
+bldg.optionsPushover.test.normType   = 2;
+
+bldg.optionsPushover.algorithm = { 'KrylovNewton','Newton','ModifiedNewton' };
+
+% Response history options
+bldg.optionsResponseHistory.constraints.type = 'Transformation';
+bldg.optionsResponseHistory.constraints.penalty.alphaS = 1.0e12;
+bldg.optionsResponseHistory.constraints.penalty.alphaM = 1.0e12;
+
+bldg.optionsResponseHistory.test.type       = 'NormDispIncr';
+bldg.optionsResponseHistory.test.tolerance  = [1e-5,1e-4,1e-3];
+bldg.optionsResponseHistory.test.iterations = 10;
+bldg.optionsResponseHistory.test.print      = 1;
+bldg.optionsResponseHistory.test.normType   = 2;
+
+bldg.optionsResponseHistory.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
 
 % Incremental dynamic analysis options
 nMotions = 14;                              % Number of ground motions to analyze

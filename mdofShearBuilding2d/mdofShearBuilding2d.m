@@ -52,6 +52,19 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         damping_RatioA = 0.02;          % Damping ratio for mode A
         damping_RatioB = 0.02;          % Damping ratio for mode B
 
+        % optionsResponseHistory
+        optionsResponseHistory
+
+    % Incremental dynamic analysis options
+
+        % optionsIDA - struct containing settings for incremental dynamic analysis
+        %   Defaults for optionsIDA are set by the constructor.
+        %
+        % Contains the following fields:
+        %
+        %
+        optionsIDA
+
     % Equivalent Lateral Force options
 
         seismicDesignCategory       % Seismic design category (Section )
@@ -60,6 +73,11 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         deflAmplFact                % Deflection amplification factor (Section )
         overstrengthFactor          % Overstrength factor (Section )
 
+    end
+    properties (Access = protected)
+        validAlgorithms  = {'Newton','KrylovNewton','ModifiedNewton'};
+        validConstraints = {'Plain','Penalty','Transformation'};
+        validTests       = {'NormDispIncr','EnergyIncr'};
     end
 
     methods
@@ -71,6 +89,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %
             obj.nStories = nStories;
 
+            % Pushover options
             obj.optionsPushover.constraints.type = 'Plain';
             obj.optionsPushover.constraints.penalty.alphaS = 1.0e12;
             obj.optionsPushover.constraints.penalty.alphaM = 1.0e12;
@@ -82,6 +101,23 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             obj.optionsPushover.test.normType   = 2;
 
             obj.optionsPushover.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
+
+            % Response history options
+            obj.optionsResponseHistory.constraints.type = 'Transformation';
+            obj.optionsResponseHistory.constraints.penalty.alphaS = 1.0e12;
+            obj.optionsResponseHistory.constraints.penalty.alphaM = 1.0e12;
+
+            obj.optionsResponseHistory.test.type       = 'NormDispIncr';
+            obj.optionsResponseHistory.test.tolerance  = [1e-5,5e-5,1e-4];
+            obj.optionsResponseHistory.test.iterations = 10;
+            obj.optionsResponseHistory.test.print      = 1;
+            obj.optionsResponseHistory.test.normType   = 2;
+
+            obj.optionsResponseHistory.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
+
+            % Incremental dynamic analysis options
+            obj.optionsIDA.tExtra = 5;
+            obj.optionsIDA.nMotions = 7;
 
         end
 
@@ -114,6 +150,40 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 obj.storySpringDefinition = storySpringDefinition;
             else
                 error('storySpringDefinition should be cell vector of length %i (number of stories)',obj.nStories); %#ok - nStories is set by the constructor
+            end
+        end
+        function set.optionsPushover(obj,optionsPushover)
+            if isfield(optionsPushover,'constraints')
+                optionsPushover.constraints = obj.checkConstraints(optionsPushover.constraints);
+            end
+            if isfield(optionsPushover,'test')
+                optionsPushover.test = obj.checkTest(optionsPushover.test);
+            end
+            if isfield(optionsPushover,'algorithm')
+                optionsPushover.algorithm = obj.checkAlgorithm(optionsPushover.algorithm);
+            end
+            obj.optionsPushover = optionsPushover;
+        end
+        function constraints = checkConstraints(obj,constraints)
+            if isfield(constraints,'type')
+            assert(ischar(constraints.type),'Constraints type must be a character vector');
+            check = strcmpi(constraints.type,obj.validConstraints);
+            assert(any(check),'Unknown constraints type: %s',constraints.type);
+            constraints.type = obj.validConstraints{check};  % Ensure capitalization is correct
+            end
+        end
+        function test = checkTest(obj,test)
+            assert(ischar(test.type),'Test method must be a character vector');
+            check = strcmpi(test.type,obj.validTests);
+            assert(any(check),'Unknown test method: %s',test.type);
+            test.type = obj.validTests{check};  % Ensure capitalization is correct
+        end
+        function algorithm = checkAlgorithm(obj,algorithm)
+            assert(iscell(algorithm),'Algorithm list must be a cell vector')
+            for i = 1:length(algorithm)
+                check = strcmpi(algorithm{i},obj.validAlgorithms);
+                assert(any(check),'Unknown test method: %s',algorithm{i});
+                algorithm{i} = obj.validAlgorithms{check};  % Ensure capitalization is correct
             end
         end
 
@@ -271,24 +341,16 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             fprintf(fid,'recorder Element -file {%s} -eleRange 1 %i force \n',filename_output_force,obj.nStories);
             fprintf(fid,'record \n');
             fprintf(fid,'system UmfPack \n');
-            switch lower(obj.optionsPushover.constraints.type)
-                case 'plain'
-                    fprintf(fid,'constraints Plain\n');
-                case 'penalty'
-                    fprintf(fid,'constraints Penalty %g %g\n',obj.optionsPushover.constraints.penalty.alphaS,...
-                                                              obj.optionsPushover.constraints.penalty.alphaM);
-                otherwise
-                    error('Unknown constraints type: %s',obj.optionsPushover.constraints.type)
+            % constraints
+            switch obj.optionsPushover.constraints.type
+            case 'Penalty'
+                fprintf(fid,'constraints Penalty %g %g\n',obj.optionsPushover.constraints.penalty.alphaS,...
+                                                          obj.optionsPushover.constraints.penalty.alphaM);
+            otherwise
+                fprintf(fid,'constraints %s\n',obj.optionsPushover.constraints.type);
             end
+            % test
             testArgs = cell(length(obj.optionsPushover.test.tolerance),1);
-            switch lower(obj.optionsPushover.test.type)
-                case 'normdispincr'
-                    obj.optionsPushover.test.type = 'NormDispIncr';
-                case 'energyincr'
-                    obj.optionsPushover.test.type = 'EnergyIncr';
-                otherwise
-                    error('Unknown test method: %s',obj.optionsPushover.test.type);
-            end
             for i = 1:length(obj.optionsPushover.test.tolerance)
                 testArgs{i} = sprintf('%s %g %i %i %i',obj.optionsPushover.test.type,...
                                                        obj.optionsPushover.test.tolerance(i),...
@@ -317,7 +379,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     fprintf(fid,'    set ok [analyze 1]\n');
                     for i = 1:length(testArgs)
                         if i == 1; k = 2; else; k = 1; end
-                        for j = k:length(algorithm)
+                        for j = k:length(obj.optionsPushover.algorithm)
                             fprintf(fid,'    if { $ok != 0 } {\n');
                             fprintf(fid,'        algorithm %s\n',obj.optionsPushover.algorithm{j});
                             fprintf(fid,'        test %s\n',testArgs{i});
@@ -449,9 +511,23 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             fprintf(fid,'record \n');
 
             fprintf(fid,'system UmfPack \n');
-            fprintf(fid,'constraints Transformation \n');
-            fprintf(fid,'test NormDispIncr 1e-5 10 1 \n');
-            fprintf(fid,'algorithm Newton \n');
+            switch obj.optionsResponseHistory.constraints.type
+            case 'Penalty'
+                fprintf(fid,'constraints Penalty %g %g\n',obj.optionsResponseHistory.constraints.penalty.alphaS,...
+                                                          obj.optionsResponseHistory.constraints.penalty.alphaM);
+            otherwise
+                fprintf(fid,'constraints %s\n',obj.optionsResponseHistory.constraints.type);
+            end
+            % test
+            testArgs = cell(length(obj.optionsResponseHistory.test.tolerance),1);
+            for i = 1:length(obj.optionsResponseHistory.test.tolerance)
+                testArgs{i} = sprintf('%s %g %i %i %i',obj.optionsResponseHistory.test.type,...
+                                                       obj.optionsResponseHistory.test.tolerance(i),...
+                                                       obj.optionsResponseHistory.test.iterations,...
+                                                       obj.optionsResponseHistory.test.print,...
+                                                       obj.optionsResponseHistory.test.normType);
+            end
+
             fprintf(fid,'numberer RCM \n');
 
             fprintf(fid,'updateRayleighDamping %i %g %i %g\n',...
@@ -463,16 +539,19 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             fprintf(fid,'set currentTime [getTime]\n');
             fprintf(fid,'while { $currentTime < %g } {\n',tend);
-            fprintf(fid,'    algorithm Newton \n');
+            fprintf(fid,'    algorithm %s\n',obj.optionsResponseHistory.algorithm{1});
+            fprintf(fid,'    test %s\n',testArgs{1});
             fprintf(fid,'    set ok [analyze 1 %g]\n',dt);
-            fprintf(fid,'    if { $ok != 0 } {\n');
-            fprintf(fid,'        algorithm KrylovNewton\n');
-            fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
-            fprintf(fid,'    }\n');
-            fprintf(fid,'    if { $ok != 0 } {\n');
-            fprintf(fid,'        algorithm ModifiedNewton\n');
-            fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
-            fprintf(fid,'    }\n');
+            for i = 1:length(testArgs)
+                if i == 1; k = 2; else; k = 1; end
+                for j = k:length(obj.optionsResponseHistory.algorithm)
+                    fprintf(fid,'    if { $ok != 0 } {\n');
+                    fprintf(fid,'        algorithm %s\n',obj.optionsResponseHistory.algorithm{j});
+                    fprintf(fid,'        test %s\n',testArgs{i});
+                    fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
+                    fprintf(fid,'    }\n');
+                end
+            end
             fprintf(fid,'    if { $ok != 0 } {\n');
             fprintf(fid,'        exit 2\n');
             fprintf(fid,'    }\n');
