@@ -1,5 +1,5 @@
 classdef mdofShearBuilding2d < OpenSeesAnalysis
-% MDOFSHEARBUILDING2D 
+% MDOFSHEARBUILDING2D
 
     properties
     % General settings
@@ -24,6 +24,25 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         pushover_stepSize   = 0.001;    % Step size for the pushover analysis
         pushover_maxDrift   = 6.0;      % Pushover analysis will abort if the drift of the control story reaches this value
 
+        % pushoverOptions - struct containing settings for pushover analysis
+        %   Defaults for pushoverOptions are set by the constructor.
+        %
+        % Contains the following fields:
+        %   constraints - struct containing settings for the constraints
+        %       type - specifies the constraint type to use; select from 'Plain' and 'Penalty'
+        %       penalty - struct containing settings for the penalty method
+        %           alphaS -
+        %           alphaM -
+        %
+        %   test - struct containing settings for the test method
+        %       type        - specifies the test method to use; select from 'NormDispIncr' and 'EnergyIncr'
+        %       tolerance   - tolerance for the test method
+        %       iterations  - max iterations
+        %       print       - print flag
+        %       normType    - norm type
+        %
+        %   algorithm - cell vector containing the names of algorithms to be used
+        %
         pushoverOptions
 
     % Response history options
@@ -61,12 +80,10 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             obj.pushoverOptions.test.type       = 'NormDispIncr';
             obj.pushoverOptions.test.tolerance  = [1e-5,1e-4,1e-3];
             obj.pushoverOptions.test.iterations = 10;
-            obj.pushoverOptions.test.print      = true;
+            obj.pushoverOptions.test.print      = 1;
             obj.pushoverOptions.test.normType   = 2;
 
-            obj.pushoverOptions.algorithm.initial   = 'Newton';
-            obj.pushoverOptions.algorithm.fallback1 = 'KrylovNewton';
-            obj.pushoverOptions.algorithm.fallback2 = 'ModifiedNewton';
+            obj.pushoverOptions.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
 
         end
 
@@ -286,21 +303,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             fprintf(fid,'integrator DisplacementControl %i 1 %g\n',obj.controlStory1,obj.pushover_stepSize);
             fprintf(fid,'analysis Static \n');
 
-            fields = fieldnames(obj.pushoverOptions.algorithm);
-            algorithm = cell(length(fields),1);
-            for i = 1:length(fields)
-                switch lower(obj.pushoverOptions.algorithm.(fields{i}))
-                    case 'newton'
-                        algorithm{i} = 'Newton';
-                    case 'krylovnewton'
-                        algorithm{i} = 'KrylovNewton';
-                    case 'modifiednewton'
-                        algorithm{i} = 'ModifiedNewton';
-                    otherwise
-                        error('Unknown algorithm: %s',obj.pushoverOptions.algorithm.(fields{i}));
-                end
-            end
-
             switch lower(type)
                 case 'targetdrift'
                     fprintf(fid,'algorithm Newton\n');
@@ -312,14 +314,14 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     fprintf(fid,'set currentLoad [getTime]\n');
                     fprintf(fid,'set maxLoad $currentLoad\n');
                     fprintf(fid,'while { $currentLoad >= [expr %g*$maxLoad] } {\n',targetPostPeakRatio);
-                    fprintf(fid,'    algorithm %s\n',algorithm{1});
+                    fprintf(fid,'    algorithm %s\n',obj.pushoverOptions.algorithm{1});
                     fprintf(fid,'    test %s\n',testArgs{1});
                     fprintf(fid,'    set ok [analyze 1]\n');
                     for i = 1:length(testArgs)
                         if i == 1; k = 2; else; k = 1; end
                         for j = k:length(algorithm)
                             fprintf(fid,'    if { $ok != 0 } {\n');
-                            fprintf(fid,'        algorithm %s\n',algorithm{j});
+                            fprintf(fid,'        algorithm %s\n',obj.pushoverOptions.algorithm{j});
                             fprintf(fid,'        test %s\n',testArgs{i});
                             fprintf(fid,'        set ok [analyze 1]\n');
                             fprintf(fid,'    }\n');
