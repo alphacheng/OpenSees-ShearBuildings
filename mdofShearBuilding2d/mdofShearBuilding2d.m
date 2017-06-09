@@ -14,7 +14,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
         storyMass                       % Mass of each story
         storyHeight                     % Height of each story
-        storyStiffness                  % Elastic stiffness of each story
         storySpringDefinition           % OpenSees uniaxial material definition
 
         fundamentalPeriod               % Fundamental period of the structure
@@ -137,16 +136,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 obj.storyMass = storyMass;
             else
                 error('storyMass should be vector of length %i (number of stories)',obj.nStories); %#ok - nStories is set by the constructor
-            end
-        end
-        function set.storyStiffness(obj,storyStiffness)
-            if ~isnumeric(storyStiffness)
-                error('storyStiffness should be numeric');
-            end
-            if isvectorsize(storyStiffness,obj.nStories) %#ok - nStories is set by the constructor
-                obj.storyStiffness = storyStiffness;
-            else
-                error('storyStiffness should be vector of length %i (number of stories)',obj.nStories); %#ok - nStories is set by the constructor
             end
         end
         function set.storySpringDefinition(obj,storySpringDefinition)
