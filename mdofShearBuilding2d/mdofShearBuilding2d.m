@@ -6,6 +6,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
         g                               % Acceleration due to gravity
         units                           % Units used for labels
+        verbose = true;                 % Print updates on progress to MATLAB console
 
     % Building definition
 
@@ -116,8 +117,14 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             obj.optionsResponseHistory.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
 
             % Incremental dynamic analysis options
-            obj.optionsIDA.tExtra = 5;
-            obj.optionsIDA.nMotions = 7;
+            obj.optionsIDA.tExtra = 5;                  % Extra time to add to end of analysis
+            obj.optionsIDA.nMotions = 7;                % Number of ground motions to analyze
+            obj.optionsIDA.ST = 0.25:0.25:8;            % Vector of intensities to scale each ground motion to
+            obj.optionsIDA.collapseDriftRatio = 0.05;   % Story drift ratio used to define collapse
+            obj.optionsIDA.collapseProbability = 0.2;
+            obj.optionsIDA.rating_DR = 'C';
+            obj.optionsIDA.rating_TD = 'C';
+            obj.optionsIDA.rating_MDL = 'C';
 
         end
 
@@ -596,6 +603,116 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     filename_output_def,filename_output_force);
             end
         end %function:responseHistory
+
+        function IDA = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults)
+        % incrementalDynamicAnalysis Run an incremental dynamic analysis
+        %
+        %   IDA = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults) returns the
+
+            if obj.verbose
+                fprintf('Running incremental dynamic analysis...\n');
+                ida_tic = tic;
+            end
+
+            gm = load(gm_mat);
+            ground_motions = gm.ground_motions;
+            SMT = FEMAP695_SMT(obj.fundamentalPeriod,obj.seismicDesignCategory);
+            % ST  = SMT*SF2;
+            ST = obj.optionsIDA.ST;
+            SF2 = ST/SMT;
+            figure
+            hold on
+            legendentries = cell(obj.optionsIDA.nMotions,1);
+            goodDrifts = false(obj.optionsIDA.nMotions,length(ST));
+            SCT = zeros(obj.optionsIDA.nMotions,1);
+            IDA = cell(obj.optionsIDA.nMotions,length(ST));
+            for i = 1:obj.optionsIDA.nMotions
+                gmfile = scratchFile(obj,sprintf('acc%s.acc',ground_motions(i).ID));
+                gmfid = fopen(gmfile,'w+');
+                for k = 1:ground_motions(i).numPoints
+                    fprintf(gmfid,'%f\n',ground_motions(i).normalized_acceleration(k)*obj.g);
+                end
+                fclose(gmfid);
+                dt      = ground_motions(i).dt;
+                SF1     = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
+                tend    = max(ground_motions(i).time) + obj.optionsIDA.tExtra;
+
+                % Vary scale factor
+                maxDriftRatio = zeros(length(ST),1);
+                IDA_part = cell(1,length(ST));
+                for j = 1:length(SF2)
+                    if obj.verbose
+                        fprintf('Calculating IDA{%2i, %2i}, gmID = %s, S_T = %5.2f ... ',i,j,ground_motions(i).ID,ST(j));
+                    end
+                    SF = SF1*SF2(j);
+                    IDA_part{j} = responseHistory(obj,gmfile,dt,SF,tend,ground_motions(i).ID,j);
+                    switch IDA_part{j}.exitStatus
+                        case 'Analysis Failed'
+                            maxDriftRatio(j) = NaN;
+                            if obj.verbose
+                                fprintf('Analysis failed\n');
+                            end
+                        case 'Analysis Successful'
+                            maxDriftRatio(j) = max(max(abs(IDA_part{j}.storyDrift))./obj.storyHeight);
+                            if obj.verbose
+                                fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio(j)*100);
+                            end
+                    end
+                    if maxDriftRatio(j) > 3*obj.optionsIDA.collapseDriftRatio
+                        maxDriftRatio(j+1:end) = NaN;
+                        break
+                    end
+                end
+                IDA(i,:) = IDA_part;
+                goodDrifts(i,:) = ~isnan(maxDriftRatio);
+                SCT(i) = ST(find(maxDriftRatio > obj.optionsIDA.collapseDriftRatio,1));
+
+                plot([0; maxDriftRatio(goodDrifts(i,:))*100],[0 ST(goodDrifts(i,:))],'o-')
+                legendentries{i} = ground_motions(i).ID;
+
+                if obj.deleteFilesAfterAnalysis
+                    delete(gmfile)
+                end
+            end
+
+            goodRatio = sum(sum(goodDrifts))/(length(SF2)*obj.optionsIDA.nMotions);
+            SCT_hat = median(SCT);
+            CMR = SCT_hat/SMT;
+            beta_total = FEMAP695_beta_total(obj.optionsIDA.rating_DR,obj.optionsIDA.rating_TD,obj.optionsIDA.rating_MDL,pushoverResults.periodBasedDuctility);
+            ACMR = FEMAP695_ACMRxx(beta_total,obj.optionsIDA.collapseProbability);
+
+            if ACMR/CMR < 1
+                R_accepted = false;
+                R_text = 'unacceptable';
+            else
+                R_accepted = true;
+                R_text = 'acceptable';
+            end
+
+            plot(xlim,[SCT_hat,SCT_hat],'k--');
+            plot(xlim,[SMT,SMT],'b--');
+            legendentries{end+1} = '$\hat{S}_{CT}$';
+            legendentries{end+1} = '$S_{MT}$';
+
+            grid on
+            xlim([0 15])
+            xlabel('Maximum story drift ratio (%)')
+            ylabel('Ground motion intensity, S_T (g)')
+            leg = legend(legendentries);
+            leg.Interpreter = 'latex';
+
+            % Plot sample response history
+            % plotSampleResponse(IDA{1,5})
+
+            if obj.verbose
+                ida_time = toc(ida_tic);
+                fprintf('%.3g%% of analyses completed successfully.\n',goodRatio*100);
+                fprintf('ACMR = %.4g, CMR = %.4g, R is %s\n',ACMR,CMR,R_text);
+                fprintf('Incremental dynamic analysis took %g seconds.\n',ida_time);
+            end
+
+        end
+
 
         function results = ELFanalysis(obj)
             %% ELFANALYSIS Equivalent Lateral Force procedure (ASCE 7-10)

@@ -102,7 +102,7 @@ case 'Analysis Successful'
     prePeakIndex = results.pushover.roofDrift < results.pushover.peakTotalDrift(nStories);
     designBaseShearDrift = interp1(results.pushover.baseShear(prePeakIndex),results.pushover.roofDrift(prePeakIndex),results.ELF.baseShear);
     effectiveYieldDrift = calcOverstr*designBaseShearDrift;
-    periodBasedDuctility = effectiveYieldDrift/results.pushover.peak80TotalDrift(nStories);
+    results.pushover.periodBasedDuctility = effectiveYieldDrift/results.pushover.peak80TotalDrift(nStories);
 
     fprintf('Calculated overstrength = %g\n',calcOverstr)
 
@@ -165,99 +165,7 @@ end
 %% Incremental Dynamic Analysis
 if runIDA
 
-if verbose
-    fprintf('Running incremental dynamic analysis...\n');
-    ida_tic = tic;
-end
-
-load('ground_motions.mat');
-SMT = FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
-% ST  = SMT*SF2;
-SF2 = ST/SMT;
-figure
-hold on
-legendentries = cell(nMotions,1);
-goodDrifts = false(nMotions,length(SF2));
-SCT = zeros(nMotions,1);
-IDA = cell(nMotions,length(SF2));
-for i = 1:nMotions
-    gmfile = bldg.scratchFile(sprintf('acc%s.acc',ground_motions(i).ID));
-    gmfid = fopen(gmfile,'w+');
-    for k = 1:ground_motions(i).numPoints
-        fprintf(gmfid,'%f\n',ground_motions(i).normalized_acceleration(k)*bldg.g);
-    end
-    fclose(gmfid);
-    dt      = ground_motions(i).dt;
-    SF1     = FEMAP695_SF1(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
-    tend    = max(ground_motions(i).time) + tExtra;
-
-    % Vary scale factor
-    maxDriftRatio = zeros(length(SF2),1);
-    parfor j = 1:length(SF2)
-        if verbose
-            fprintf('Calculating IDA point for {%s, %2i}, S_T = %5.2f ... ',ground_motions(i).ID,j,ST(j));
-        end
-        SF = SF1*SF2(j);
-        IDA{i,j} = responseHistory(bldg,gmfile,dt,SF,tend,ground_motions(i).ID,j);
-        switch IDA{i,j}.exitStatus
-            case 'Analysis Failed'
-                maxDriftRatio(j) = NaN;
-                if verbose
-                    fprintf('Analysis failed\n');
-                end
-            case 'Analysis Successful'
-                maxDriftRatio(j) = max(max(abs(IDA{i,j}.storyDrift))./bldg.storyHeight);
-                if verbose
-                    fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio(j)*100);
-                end
-        end
-
-    end
-    goodDrifts(i,:) = ~isnan(maxDriftRatio);
-    SCT(i) = ST(find(maxDriftRatio > collapseDriftRatio,1));
-
-    plot([0; maxDriftRatio(goodDrifts(i,:))*100],[0 ST(goodDrifts(i,:))],'o-')
-    legendentries{i} = ground_motions(i).ID;
-
-    if bldg.deleteFilesAfterAnalysis
-        delete(gmfile)
-    end
-end
-results.IDA = IDA; clear IDA;
-goodRatio = sum(sum(goodDrifts))/(length(SF2)*nMotions);
-SCT_hat = median(SCT);
-CMR = SCT_hat/SMT;
-beta_total = FEMAP695_beta_total(rating_DR,rating_TD,rating_MDL,periodBasedDuctility);
-ACMR = FEMAP695_ACMRxx(beta_total,collapseProbability);
-if ACMR/CMR < 1
-    R_accepted = false;
-    R_text = 'unacceptable';
-else
-    R_accepted = true;
-    R_text = 'acceptable';
-end
-
-plot(xlim,[SCT_hat,SCT_hat],'k--');
-plot(xlim,[SMT,SMT],'b--');
-legendentries{end+1} = '$\hat{S}_{CT}$';
-legendentries{end+1} = '$S_{MT}$';
-
-grid on
-xlim([0 15])
-xlabel('Maximum story drift ratio (%)')
-ylabel('Ground motion intensity, S_T (g)')
-leg = legend(legendentries);
-leg.Interpreter = 'latex';
-
-% Plot sample response history
-plotSampleResponse(results.IDA{1,5})
-
-if verbose
-    ida_time = toc(ida_tic);
-    fprintf('%.3g%% of analyses completed successfully.\n',goodRatio*100);
-    fprintf('ACMR = %.4g, CMR = %.4g, R is %s\n',ACMR,CMR,R_text);
-    fprintf('Incremental dynamic analysis took %g seconds.\n',ida_time);
-end
+results.IDA = incrementalDynamicAnalysis(bldg,'ground_motions.mat',results.pushover);
 
 end
 

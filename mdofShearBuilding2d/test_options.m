@@ -45,11 +45,6 @@ springGivens.enforceMinimumStiffness = false;
 springGivens.enforceMinimumStrength = false;
 springGivens.minimumRatio = 0.7;
 
-collapseProbability = 0.2;
-rating_DR = 'C';
-rating_TD = 'C';
-rating_MDL = 'C';
-
 %##############################################################################%
 %% Analysis Options
 bldg.echoOpenSeesOutput = false;
@@ -96,8 +91,12 @@ bldg.optionsResponseHistory.test.normType   = 2;
 bldg.optionsResponseHistory.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
 
 % Incremental dynamic analysis options
-nMotions = 14;                              % Number of ground motions to analyze
-tExtra = 5;                                 % Extra analysis time after end of ground motion
-collapseDriftRatio = 0.05;                  % Story drift ratio that defines collapse
-ST = 0.25:0.25:8;
+bldg.optionsIDA.nMotions = 7;                              % Number of ground motions to analyze
+bldg.optionsIDA.tExtra = 5;                                 % Extra analysis time after end of ground motion
+bldg.optionsIDA.collapseDriftRatio = 0.05;                  % Story drift ratio that defines collapse
+bldg.optionsIDA.ST = 0.25:0.25:8;
+bldg.optionsIDA.collapseProbability = 0.2;
+bldg.optionsIDA.rating_DR = 'C';
+bldg.optionsIDA.rating_TD = 'C';
+bldg.optionsIDA.rating_MDL = 'C';
 % SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
