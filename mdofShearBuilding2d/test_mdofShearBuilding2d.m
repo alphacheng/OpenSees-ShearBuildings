@@ -23,7 +23,7 @@ end
 %##############################################################################%
 %% Equivalent lateral force procedure
 
-if verbose; fprintf('Running equivalent lateral force procedure...\n'); end
+if bldg.verbose; fprintf('Running equivalent lateral force procedure...\n'); end
 
 iterating = true;
 currDiff = 1+diffTol;
@@ -73,7 +73,7 @@ end
 %##############################################################################%
 %% Pushover analysis
 if runPushover
-if verbose
+if bldg.verbose
     fprintf('Running pushover analysis...\n');
     pushover_tic = tic;
 end
@@ -154,7 +154,7 @@ otherwise
 
 end
 
-if verbose
+if bldg.verbose
     pushover_time = toc(pushover_tic);
     fprintf('Pushover analysis took %g seconds.\n',pushover_time);
 end
@@ -165,7 +165,10 @@ end
 %% Incremental Dynamic Analysis
 if runIDA
 
-results.IDA = incrementalDynamicAnalysis(bldg,'ground_motions.mat',results.pushover);
+[results.IDA,R_accepted] = incrementalDynamicAnalysis(bldg,'ground_motions.mat',results.pushover);
+
+% Plot sample response history
+plotSampleResponse(results.IDA{1,5})
 
 end
 

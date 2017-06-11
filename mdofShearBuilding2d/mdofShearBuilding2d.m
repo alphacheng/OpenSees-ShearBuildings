@@ -593,7 +593,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             end
         end %function:responseHistory
 
-        function IDA = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults)
+        function [IDA,R_accepted] = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults)
         % incrementalDynamicAnalysis Run an incremental dynamic analysis
         %
         %   IDA = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults) returns the
@@ -615,7 +615,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             goodDrifts = false(obj.optionsIDA.nMotions,length(ST));
             SCT = zeros(obj.optionsIDA.nMotions,1);
             IDA = cell(obj.optionsIDA.nMotions,length(ST));
-            for i = 1:obj.optionsIDA.nMotions
+            parfor i = 1:obj.optionsIDA.nMotions
                 gmfile = scratchFile(obj,sprintf('acc%s.acc',ground_motions(i).ID));
                 gmfid = fopen(gmfile,'w+');
                 for k = 1:ground_motions(i).numPoints
@@ -657,7 +657,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 SCT(i) = ST(find(maxDriftRatio > obj.optionsIDA.collapseDriftRatio,1));
 
                 plot([0; maxDriftRatio(goodDrifts(i,:))*100],[0 ST(goodDrifts(i,:))],'o-')
-                legendentries{i} = ground_motions(i).ID;
+                legendentries{i} = ground_motions(i).ID; %#ok<PFOUS> Linter isn't recognizing this var is being used later
 
                 if obj.deleteFilesAfterAnalysis
                     delete(gmfile)
@@ -689,9 +689,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             ylabel('Ground motion intensity, S_T (g)')
             leg = legend(legendentries);
             leg.Interpreter = 'latex';
-
-            % Plot sample response history
-            % plotSampleResponse(IDA{1,5})
 
             if obj.verbose
                 ida_time = toc(ida_tic);

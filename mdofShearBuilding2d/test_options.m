@@ -50,9 +50,9 @@ springGivens.minimumRatio = 0.7;
 bldg.echoOpenSeesOutput = false;
 bldg.deleteFilesAfterAnalysis = true;
 
-verbose     = true ;    % Toggle verbose output
-runPushover = true ;    % Toggle pushover analysis
-runIDA      = true ;    % Toggle IDA
+bldg.verbose   = true ; % Toggle verbose output
+runPushover    = true ; % Toggle pushover analysis
+runIDA         = true ; % Toggle IDA
 plotHysteretic = false; % Toggle plotting hysteretic curves
 
 % Equivalent lateral force options
