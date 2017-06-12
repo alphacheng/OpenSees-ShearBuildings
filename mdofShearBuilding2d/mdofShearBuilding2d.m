@@ -25,14 +25,13 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         pushover_maxDrift   = 6.0;      % Pushover analysis will abort if the drift of the control story reaches this value
 
         % optionsPushover - struct containing settings for pushover analysis
-        %   Defaults for optionsPushover are set by the constructor.
         %
         % Contains the following fields:
         %   constraints - struct containing settings for the constraints
-        %       type - specifies the constraint type to use; select from 'Plain' and 'Penalty'
+        %       type - specifies the constraint type to use; select from 'Plain', 'Transformation', and 'Penalty'
         %       penalty - struct containing settings for the penalty method
-        %           alphaS -
-        %           alphaM -
+        %           alphaS - penalty value on single-point constraints
+        %           alphaM - penalty value on multi-point constraints
         %
         %   test - struct containing settings for the test method
         %       type        - specifies the test method to use; select from 'NormDispIncr' and 'EnergyIncr'
@@ -41,9 +40,20 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         %       print       - print flag
         %       normType    - norm type
         %
-        %   algorithm - cell vector containing the names of algorithms to be used
+        %   algorithm - cell vector containing the names of algorithms to be used; select from 'Newton', 'KrylovNewton', and 'ModifiedNewton'
         %
-        optionsPushover
+        optionsPushover = struct('constraints' , struct('type'       , 'Plain', ...
+                                                        'penalty'    , struct('alphaS',1.0e12, ...
+                                                                              'alphaM',1.0e12) ...
+                                ), ...
+                                 'test'        , struct('type'       , 'NormDispIncr', ...
+                                                        'tolerance'  , [1e-5,1e-4,1e-3], ...
+                                                        'iterations' , 10, ...
+                                                        'print'      , 1, ...
+                                                        'normType'   , 2 ...
+                                ), ...
+                                 'algorithm'   , {{ 'Newton','KrylovNewton','ModifiedNewton' }} ...
+        );
 
     % Response history options
 
@@ -52,26 +62,68 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         damping_RatioA = 0.02;          % Damping ratio for mode A
         damping_RatioB = 0.02;          % Damping ratio for mode B
 
-        % optionsResponseHistory
-        optionsResponseHistory
+        % optionsResponseHistory - struct containing settings for response history analysis
+        %
+        % Contains the following fields:
+        %   constraints - struct containing settings for the constraints
+        %       type - specifies the constraint type to use; select from 'Plain', 'Transformation', and 'Penalty'
+        %       penalty - struct containing settings for the penalty method
+        %           alphaS - penalty value on single-point constraints
+        %           alphaM - penalty value on multi-point constraints
+        %
+        %   test - struct containing settings for the test method
+        %       type        - specifies the test method to use; select from 'NormDispIncr' and 'EnergyIncr'
+        %       tolerance   - tolerances for the tests; if switching algorithms fails, analysis will cycle through these
+        %       iterations  - max iterations
+        %       print       - print flag
+        %       normType    - norm type
+        %
+        %   algorithm - cell vector containing the names of algorithms to be used; select from 'Newton', 'KrylovNewton', and 'ModifiedNewton'
+        %
+        optionsResponseHistory = struct('constraints' , struct('type'       , 'Transformation', ...
+                                                               'penalty'    , struct('alphaS',1.0e12, ...
+                                                                                     'alphaM',1.0e12) ...
+                                        ), ...
+                                        'test'        , struct('type'       , 'NormDispIncr', ...
+                                                               'tolerance'  , [1e-5,5e-5,1e-4], ...
+                                                               'iterations' , 10, ...
+                                                               'print'      , 1, ...
+                                                               'normType'   , 2 ...
+                                        ), ...
+                                        'algorithm'   , {{ 'Newton','KrylovNewton','ModifiedNewton' }} ...
+        );
 
     % Incremental dynamic analysis options
 
         % optionsIDA - struct containing settings for incremental dynamic analysis
-        %   Defaults for optionsIDA are set by the constructor.
         %
         % Contains the following fields:
+        %   tExtra              - Extra time to add to end of analysis
+        %   nMotions            - Number of ground motions to analyze
+        %   ST                  - Vector of intensities to scale each ground motion to
+        %   collapseDriftRatio  - Story drift ratio used to define collapse
+        %   collapseProbability - Collapse probability being assessed
+        %   rating_DR           - Qualitative rating of
+        %   rating_TD           - Qualitative rating of
+        %   rating_MDL          - Qualitative rating of
         %
-        %
-        optionsIDA
+        optionsIDA = struct('tExtra',5,...
+                            'nMotions',7,...
+                            'ST',0.25:0.25:8,...
+                            'collapseDriftRatio',0.05,...
+                            'collapseProbability',0.2,...
+                            'rating_DR','C',...
+                            'rating_TD','C',...
+                            'rating_MDL','C'...
+        );
 
     % Equivalent Lateral Force options
 
-        seismicDesignCategory       % Seismic design category (Section )
-        impFactor                   % Seismic importance factor (Section )
-        respModCoeff                % Response modification coefficient (Section )
-        deflAmplFact                % Deflection amplification factor (Section )
-        overstrengthFactor          % Overstrength factor (Section )
+        seismicDesignCategory       % Seismic design category (ASCE 7-10 Section 11.6)
+        impFactor                   % Seismic importance factor (ASCE 7-10 Section 1.5)
+        respModCoeff                % Response modification coefficient (ASCE 7-10 Section 12.2)
+        deflAmplFact                % Deflection amplification factor (ASCE 7-10 Section 12.2)
+        overstrengthFactor          % Overstrength factor (ASCE 7-10 Section 12.2)
 
     end
     properties (Access = protected)
@@ -88,43 +140,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             % obj = mdofShearBuilding2d(nStories)
             %
             obj.nStories = nStories;
-
-            % Pushover options
-            obj.optionsPushover.constraints.type = 'Plain';
-            obj.optionsPushover.constraints.penalty.alphaS = 1.0e12;
-            obj.optionsPushover.constraints.penalty.alphaM = 1.0e12;
-
-            obj.optionsPushover.test.type       = 'NormDispIncr';
-            obj.optionsPushover.test.tolerance  = [1e-5,1e-4,1e-3];
-            obj.optionsPushover.test.iterations = 10;
-            obj.optionsPushover.test.print      = 1;
-            obj.optionsPushover.test.normType   = 2;
-
-            obj.optionsPushover.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
-
-            % Response history options
-            obj.optionsResponseHistory.constraints.type = 'Transformation';
-            obj.optionsResponseHistory.constraints.penalty.alphaS = 1.0e12;
-            obj.optionsResponseHistory.constraints.penalty.alphaM = 1.0e12;
-
-            obj.optionsResponseHistory.test.type       = 'NormDispIncr';
-            obj.optionsResponseHistory.test.tolerance  = [1e-5,5e-5,1e-4];
-            obj.optionsResponseHistory.test.iterations = 10;
-            obj.optionsResponseHistory.test.print      = 1;
-            obj.optionsResponseHistory.test.normType   = 2;
-
-            obj.optionsResponseHistory.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
-
-            % Incremental dynamic analysis options
-            obj.optionsIDA.tExtra = 5;                  % Extra time to add to end of analysis
-            obj.optionsIDA.nMotions = 7;                % Number of ground motions to analyze
-            obj.optionsIDA.ST = 0.25:0.25:8;            % Vector of intensities to scale each ground motion to
-            obj.optionsIDA.collapseDriftRatio = 0.05;   % Story drift ratio used to define collapse
-            obj.optionsIDA.collapseProbability = 0.2;
-            obj.optionsIDA.rating_DR = 'C';
-            obj.optionsIDA.rating_TD = 'C';
-            obj.optionsIDA.rating_MDL = 'C';
-
         end
 
         %% Set functions
@@ -149,9 +164,9 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             end
         end
         function set.optionsPushover(obj,optionsPushover)
-            if isfield(optionsPushover,'constraints')
+            % if isfield(optionsPushover,'constraints')
                 optionsPushover.constraints = obj.checkConstraints(optionsPushover.constraints);
-            end
+            % end
             if isfield(optionsPushover,'test')
                 optionsPushover.test = obj.checkTest(optionsPushover.test);
             end
@@ -608,56 +623,52 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             SMT = FEMAP695_SMT(obj.fundamentalPeriod,obj.seismicDesignCategory);
             % ST  = SMT*SF2;
             ST = obj.optionsIDA.ST;
+            SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
             SF2 = ST/SMT;
-            figure
-            hold on
             legendentries = cell(obj.optionsIDA.nMotions,1);
+            maxDriftRatio = cell(obj.optionsIDA.nMotions,1);
+            maxDriftRatio(:) = {zeros(1,length(ST))};
             goodDrifts = false(obj.optionsIDA.nMotions,length(ST));
             SCT = zeros(obj.optionsIDA.nMotions,1);
             IDA = cell(obj.optionsIDA.nMotions,length(ST));
-            parfor i = 1:obj.optionsIDA.nMotions
-                gmfile = scratchFile(obj,sprintf('acc%s.acc',ground_motions(i).ID));
-                gmfid = fopen(gmfile,'w+');
-                for k = 1:ground_motions(i).numPoints
-                    fprintf(gmfid,'%f\n',ground_motions(i).normalized_acceleration(k)*obj.g);
-                end
-                fclose(gmfid);
-                dt      = ground_motions(i).dt;
-                SF1     = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
-                tend    = max(ground_motions(i).time) + obj.optionsIDA.tExtra;
+            parfor gmIndex = 1:obj.optionsIDA.nMotions
+                gmfile = scratchFile(obj,sprintf('acc%s.acc',ground_motions(gmIndex).ID));
+                dlmwrite(gmfile,ground_motions(gmIndex).normalized_acceleration*obj.g);
+
+                dt      = ground_motions(gmIndex).dt;
+                tend    = max(ground_motions(gmIndex).time) + obj.optionsIDA.tExtra;
 
                 % Vary scale factor
-                maxDriftRatio = zeros(length(ST),1);
                 IDA_part = cell(1,length(ST));
-                for j = 1:length(SF2)
+                for sfIndex = 1:length(SF2)
                     if obj.verbose
-                        fprintf('Calculating IDA{%2i, %2i}, gmID = %s, S_T = %5.2f ... ',i,j,ground_motions(i).ID,ST(j));
+                        fprintf('Calculating IDA{%2i, %2i}, gmID = %s, S_T = %5.2f ... ',gmIndex,sfIndex,ground_motions(gmIndex).ID,ST(sfIndex));
                     end
-                    SF = SF1*SF2(j);
-                    IDA_part{j} = responseHistory(obj,gmfile,dt,SF,tend,ground_motions(i).ID,j);
-                    switch IDA_part{j}.exitStatus
+                    SF = SF1*SF2(sfIndex);
+                    IDA_part{sfIndex} = responseHistory(obj,gmfile,dt,SF,tend,ground_motions(gmIndex).ID,sfIndex);
+                    switch IDA_part{sfIndex}.exitStatus
                         case 'Analysis Failed'
-                            maxDriftRatio(j) = NaN;
+                            maxDriftRatio{gmIndex}(sfIndex) = NaN;
                             if obj.verbose
                                 fprintf('Analysis failed\n');
                             end
                         case 'Analysis Successful'
-                            maxDriftRatio(j) = max(max(abs(IDA_part{j}.storyDrift))./obj.storyHeight);
+                            maxDriftRatio{gmIndex}(sfIndex) = max(max(abs(IDA_part{sfIndex}.storyDrift))./obj.storyHeight);
                             if obj.verbose
-                                fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio(j)*100);
+                                fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio{gmIndex}(sfIndex)*100);
                             end
                     end
-                    if maxDriftRatio(j) > 3*obj.optionsIDA.collapseDriftRatio
-                        maxDriftRatio(j+1:end) = NaN;
+                    if maxDriftRatio{gmIndex}(sfIndex) > 3*obj.optionsIDA.collapseDriftRatio
+                        maxDriftRatio{gmIndex}(sfIndex+1:end) = NaN;
                         break
                     end
                 end
-                IDA(i,:) = IDA_part;
-                goodDrifts(i,:) = ~isnan(maxDriftRatio);
-                SCT(i) = ST(find(maxDriftRatio > obj.optionsIDA.collapseDriftRatio,1));
+                IDA(gmIndex,:) = IDA_part;
+                goodDrifts(gmIndex,:) = ~isnan(maxDriftRatio{gmIndex});
+                SCT(gmIndex) = ST(find(maxDriftRatio{gmIndex} > obj.optionsIDA.collapseDriftRatio,1));
 
-                plot([0; maxDriftRatio(goodDrifts(i,:))*100],[0 ST(goodDrifts(i,:))],'o-')
-                legendentries{i} = ground_motions(i).ID; %#ok<PFOUS> Linter isn't recognizing this var is being used later
+                % plot([0; maxDriftRatio(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-')
+                legendentries{gmIndex} = ground_motions(gmIndex).ID; %#ok<PFOUS> Linter isn't recognizing this var is being used later
 
                 if obj.deleteFilesAfterAnalysis
                     delete(gmfile)
@@ -678,6 +689,11 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 R_text = 'acceptable';
             end
 
+            figure
+            hold on
+            for gmIndex = 1:obj.optionsIDA.nMotions
+                plot([0 maxDriftRatio{gmIndex}(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-')
+            end
             plot(xlim,[SCT_hat,SCT_hat],'k--');
             plot(xlim,[SMT,SMT],'b--');
             legendentries{end+1} = '$\hat{S}_{CT}$';
