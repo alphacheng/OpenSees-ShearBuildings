@@ -828,6 +828,37 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
         end %function:springDesign
 
+        %% Plot Functions
+
+        function plotSampleResponse(results)
+            %% PLOTSAMPLERESPONSE Plot selected time history results
+            %
+            %    PLOTSAMPLERESPONSE(results) plots the ground motion and the
+            %       total roof drift as two subplots in a single figure.
+            %
+
+            figure
+            subplot(211)
+            plot(results.time,results.groundMotion,'-')
+            grid on
+            grid minor
+            xlabel(sprintf('Time (%s)',obj.units.time))
+            ylabel(sprintf('Acceleration (%s/%s^2)',obj.units.length,obj.units.time))
+            titleText = sprintf('Input Ground Motion (GM: %s, SF: %g)',results.gmID,results.SF);
+            title(titleText)
+
+            subplot(212)
+            plot(results.time,results.roofDrift,'-')
+            grid on
+            grid minor
+            axisLimits = axis;
+            axis([axisLimits(1:2),-max(abs(axisLimits(3:4))),max(abs(axisLimits(3:4)))])
+            xlabel(sprintf('Time (%s)',obj.units.time))
+            ylabel(sprintf('Drift (%s)',obj.units.length))
+            title('Roof Drift')
+
+        end %function:plotSampleResponse
+
         function animateResponseHistory(obj,results,dt)
             %% ANIMATERESPONSEHISTORY Animate a given response history
             %
