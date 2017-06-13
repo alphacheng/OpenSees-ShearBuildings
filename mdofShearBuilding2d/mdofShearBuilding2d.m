@@ -479,26 +479,32 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %       Returns the results of a response history analysis of obj
             %       subject to ground motion stored in gmFile with timestep dt
             %       scaled by SF. Analysis concludes at tend. gmID and indexNum
-            %       are used for incremental dynamic analyses.
+            %       are used for incremental dynamic analyses and are optional
+            %       if an IDA is not being conducted.
             %
             %   results has the following fields:
             %
-            %   gmID
-            %   indexNum
-            %   SF
-            %   textOutput
-            %   groundMotion
-            %   totalDrift
-            %   storyShear
-            %   storyDrift
-            %   roofDrift
-            %   baseShear
+            %   gmID         -
+            %   indexNum     -
+            %   SF           - Scale factor used in the analysis
+            %   textOutput   - Text output from OpenSees
+            %   groundMotion - Scaled ground motion used as input
+            %   totalDrift   - Time history of the total drift of each story
+            %   storyShear   - Time history of story shears
+            %   storyDrift   - Time history of story drifts
+            %   roofDrift    - Time history of the total roof drift
+            %   baseShear    - Time history of the base shear
             %
 
             % Initialize Results
             results = struct;
-            results.gmID = gmID;
-            results.indexNum = indexNum;
+            if nargin < 6
+                gmID = '01a';
+                indexNum = 1;
+            else
+                results.gmID = gmID;
+                results.indexNum = indexNum;
+            end
             results.SF = SF;
 
             % Filenames
@@ -625,12 +631,14 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             ST = obj.optionsIDA.ST;
             SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
             SF2 = ST/SMT;
+
             legendentries = cell(obj.optionsIDA.nMotions,1);
             maxDriftRatio = cell(obj.optionsIDA.nMotions,1);
             maxDriftRatio(:) = {zeros(1,length(ST))};
             goodDrifts = false(obj.optionsIDA.nMotions,length(ST));
             SCT = zeros(obj.optionsIDA.nMotions,1);
             IDA = cell(obj.optionsIDA.nMotions,length(ST));
+
             parfor gmIndex = 1:obj.optionsIDA.nMotions
                 gmfile = scratchFile(obj,sprintf('acc%s.acc',ground_motions(gmIndex).ID));
                 dlmwrite(gmfile,ground_motions(gmIndex).normalized_acceleration*obj.g);
@@ -646,6 +654,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     end
                     SF = SF1*SF2(sfIndex);
                     IDA_part{sfIndex} = responseHistory(obj,gmfile,dt,SF,tend,ground_motions(gmIndex).ID,sfIndex);
+                    IDA_part{sfIndex}.ST = ST(sfIndex);
                     switch IDA_part{sfIndex}.exitStatus
                         case 'Analysis Failed'
                             maxDriftRatio{gmIndex}(sfIndex) = NaN;
@@ -830,32 +839,95 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
         %% Plot Functions
 
-        function plotSampleResponse(results)
+        function plotSampleResponse(obj,results,varargin)
             %% PLOTSAMPLERESPONSE Plot selected time history results
             %
-            %    PLOTSAMPLERESPONSE(results) plots the ground motion and the
+            %   PLOTSAMPLERESPONSE(results) plots the ground motion and the
             %       total roof drift as two subplots in a single figure.
             %
+            %   PLOTSAMPLERESPONSE(results,'story',stories) plots the ground
+            %       motion and the story drift of the stories specified in the
+            %       vector stories.
+            %
+            if nargin > 2
+                plotRoofDrift = false;
+                for arg = 1:length(varargin)
+                    if ischar(varargin{arg})
+                        switch lower(varargin{arg})
+                            case 'roof'
+                                plotRoofDrift = true;
+                            case 'story'
+                                assert(isvector(varargin{arg+1}) && isnumeric(varargin{arg+1}),'stories should be a vector')
+                                stories = varargin{arg+1};
+                                plotStoryDrift = true;
+                            otherwise
+                                error('Invalid argument');
+                        end
+                    end
+                end
+            else
+                plotRoofDrift = true;
+                plotStoryDrift = false;
+            end
 
-            figure
-            subplot(211)
+            if plotStoryDrift && plotRoofDrift
+                nPlots = 3;
+            else
+                nPlots = 2;
+            end
+
+            fig = figure;
+            pos = fig.Position;
+            fig.Position = get(groot,'Screensize'); % Maximizing the figure window when drawing will reduce whitespace around plots
+
+            subplot(nPlots,1,1)
             plot(results.time,results.groundMotion,'-')
             grid on
             grid minor
+            yl = ylim;
+            ylim([-max(abs(yl)),max(abs(yl))])
             xlabel(sprintf('Time (%s)',obj.units.time))
             ylabel(sprintf('Acceleration (%s/%s^2)',obj.units.length,obj.units.time))
-            titleText = sprintf('Input Ground Motion (GM: %s, SF: %g)',results.gmID,results.SF);
+            if isfield(results,'gmID') && isfield(results,'ST')
+                titleText = sprintf('Input Ground Motion (GM: %s, S_T: %gg)',results.gmID,results.ST);
+            elseif isfield(results,'gmID')
+                titleText = sprintf('Input Ground Motion (GM: %s, SF: %g)',results.gmID,results.SF);
+            else
+                titleText = sprintf('Input Ground Motion (SF: %g)',results.SF);
+            end
             title(titleText)
 
-            subplot(212)
-            plot(results.time,results.roofDrift,'-')
-            grid on
-            grid minor
-            axisLimits = axis;
-            axis([axisLimits(1:2),-max(abs(axisLimits(3:4))),max(abs(axisLimits(3:4)))])
-            xlabel(sprintf('Time (%s)',obj.units.time))
-            ylabel(sprintf('Drift (%s)',obj.units.length))
-            title('Roof Drift')
+            if plotRoofDrift
+                subplot(nPlots,1,2)
+                plot(results.time,results.roofDrift,'-')
+                grid on
+                grid minor
+                yl = ylim;
+                ylim([-max(abs(yl)),max(abs(yl))])
+                xlabel(sprintf('Time (%s)',obj.units.time))
+                ylabel(sprintf('Drift (%s)',obj.units.length))
+                title('Total Roof Drift')
+            end
+
+            if plotStoryDrift
+                subplot(nPlots,1,nPlots)
+                hold on
+                legendentries = cell(length(stories),1);
+                for plotIndex = 1:length(stories)
+                    plot(results.time,results.storyDrift(:,stories(plotIndex)))
+                    legendentries{plotIndex} = sprintf('Story %i',stories(plotIndex));
+                end
+                grid on
+                grid minor
+                yl = ylim;
+                ylim([-max(abs(yl)),max(abs(yl))])
+                xlabel(sprintf('Time (%s)',obj.units.time))
+                ylabel(sprintf('Drift (%s)',obj.units.length))
+                legend(legendentries)
+                title('Story Drift')
+            end
+            fig.Position = pos;
+
 
         end %function:plotSampleResponse
 

@@ -168,7 +168,13 @@ if runIDA
 [results.IDA,R_accepted] = incrementalDynamicAnalysis(bldg,'ground_motions.mat',results.pushover);
 
 % Plot sample response history
-plotSampleResponse(results.IDA{1,5})
+randGM = randi(bldg.optionsIDA.nMotions);
+randID = randi(length(bldg.optionsIDA.ST));
+while isempty(results.IDA{randGM,randID})
+    randGM = randi(bldg.optionsIDA.nMotions);
+    randID = randi(length(bldg.optionsIDA.ST));
+end
+bldg.plotSampleResponse(results.IDA{randGM,randID},'story',1:nStories,'roof')
 
 end
 
