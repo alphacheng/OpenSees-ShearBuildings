@@ -95,6 +95,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
     % Incremental dynamic analysis options
 
+        SNRT    % Geometric mean of the 5% damped spectral intensity at the fundamental period
+
         % optionsIDA - struct containing settings for incremental dynamic analysis
         %
         % Contains the following fields:
@@ -103,9 +105,9 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         %   ST                  - Vector of intensities to scale each ground motion to
         %   collapseDriftRatio  - Story drift ratio used to define collapse
         %   collapseProbability - Collapse probability being assessed
-        %   rating_DR           - Qualitative rating of
-        %   rating_TD           - Qualitative rating of
-        %   rating_MDL          - Qualitative rating of
+        %   rating_DR           - Qualitative rating of the design requirements
+        %   rating_TD           - Qualitative rating of the test data
+        %   rating_MDL          - Qualitative rating of the archetype models
         %
         optionsIDA = struct('tExtra',5,...
                             'nMotions',7,...
@@ -615,9 +617,9 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         end %function:responseHistory
 
         function [IDA,R_accepted] = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults)
-        % incrementalDynamicAnalysis Run an incremental dynamic analysis
-        %
-        %   IDA = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults) returns the
+            %% incrementalDynamicAnalysis Run an incremental dynamic analysis
+            %
+            %   IDA = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults) returns the
 
             if obj.verbose
                 fprintf('Running incremental dynamic analysis...\n');
@@ -629,7 +631,11 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             SMT = FEMAP695_SMT(obj.fundamentalPeriod,obj.seismicDesignCategory);
             % ST  = SMT*SF2;
             ST = obj.optionsIDA.ST;
-            SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
+            if ~isempty(obj.SNRT)
+                SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory,obj.SNRT);
+            else
+                SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
+            end
             SF2 = ST/SMT;
 
             legendentries = cell(obj.optionsIDA.nMotions,1);
@@ -674,7 +680,13 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 end
                 IDA(gmIndex,:) = IDA_part;
                 goodDrifts(gmIndex,:) = ~isnan(maxDriftRatio{gmIndex});
-                SCT(gmIndex) = ST(find(maxDriftRatio{gmIndex} > obj.optionsIDA.collapseDriftRatio,1));
+
+                if any(maxDriftRatio{gmIndex} > obj.optionsIDA.collapseDriftRatio)
+                    SCT(gmIndex) = ST(find(maxDriftRatio{gmIndex} > obj.optionsIDA.collapseDriftRatio,1));
+                else
+                    SCT(gmIndex) = ST(end);
+                    warning('Building did not collapse!')
+                end
 
                 % plot([0; maxDriftRatio(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-')
                 legendentries{gmIndex} = ground_motions(gmIndex).ID; %#ok<PFOUS> Linter isn't recognizing this var is being used later
@@ -687,10 +699,12 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             goodRatio = sum(sum(goodDrifts))/(length(SF2)*obj.optionsIDA.nMotions);
             SCT_hat = median(SCT);
             CMR = SCT_hat/SMT;
+            SSF = FEMAP695_SSF(obj.fundamentalPeriod,pushoverResults.periodBasedDuctility,obj.seismicDesignCategory);
+            ACMR = SSF*CMR;
             beta_total = FEMAP695_beta_total(obj.optionsIDA.rating_DR,obj.optionsIDA.rating_TD,obj.optionsIDA.rating_MDL,pushoverResults.periodBasedDuctility);
-            ACMR = FEMAP695_ACMRxx(beta_total,obj.optionsIDA.collapseProbability);
+            ACMR20 = FEMAP695_ACMRxx(beta_total,obj.optionsIDA.collapseProbability);
 
-            if ACMR/CMR < 1
+            if ACMR < ACMR20
                 R_accepted = false;
                 R_text = 'unacceptable';
             else
@@ -700,8 +714,9 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             figure
             hold on
+            IDA_colors = parula(obj.optionsIDA.nMotions);
             for gmIndex = 1:obj.optionsIDA.nMotions
-                plot([0 maxDriftRatio{gmIndex}(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-')
+                plot([0 maxDriftRatio{gmIndex}(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-','Color',IDA_colors(gmIndex,:))
             end
             plot(xlim,[SCT_hat,SCT_hat],'k--');
             plot(xlim,[SMT,SMT],'b--');
@@ -718,7 +733,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             if obj.verbose
                 ida_time = toc(ida_tic);
                 fprintf('%.3g%% of analyses completed successfully.\n',goodRatio*100);
-                fprintf('ACMR = %.4g, CMR = %.4g, R is %s\n',ACMR,CMR,R_text);
+                fprintf('ACMR = %.4g, ACMR20 = %.4g, R is %s\n',ACMR,ACMR20,R_text);
                 fprintf('Incremental dynamic analysis took %g seconds.\n',ida_time);
             end
 
