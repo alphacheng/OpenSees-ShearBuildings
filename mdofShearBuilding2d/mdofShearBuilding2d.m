@@ -616,7 +616,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             end
         end %function:responseHistory
 
-        function [IDA,R_accepted] = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults)
+        function results = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults)
             %% incrementalDynamicAnalysis Run an incremental dynamic analysis
             %
             %   IDA = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults) returns the
@@ -638,7 +638,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             end
             SF2 = ST/SMT;
 
-            legendentries = cell(obj.optionsIDA.nMotions,1);
             maxDriftRatio = cell(obj.optionsIDA.nMotions,1);
             maxDriftRatio(:) = {zeros(1,length(ST))};
             goodDrifts = false(obj.optionsIDA.nMotions,length(ST));
@@ -688,9 +687,6 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     warning('Building did not collapse!')
                 end
 
-                % plot([0; maxDriftRatio(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-')
-                legendentries{gmIndex} = ground_motions(gmIndex).ID; %#ok<PFOUS> Linter isn't recognizing this var is being used later
-
                 if obj.deleteFilesAfterAnalysis
                     delete(gmfile)
                 end
@@ -712,23 +708,24 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 R_text = 'acceptable';
             end
 
-            figure
-            hold on
-            IDA_colors = parula(obj.optionsIDA.nMotions);
+            % Return results
+            results.ACMR = ACMR;
+            results.ACMR20 = ACMR20;
+            results.beta_total = beta_total;
+            results.R_accepted = R_accepted;
+            results.SSF = SSF;
+            results.SMT = SMT;
+            results.SCT_hat = SCT_hat;
             for gmIndex = 1:obj.optionsIDA.nMotions
-                plot([0 maxDriftRatio{gmIndex}(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-','Color',IDA_colors(gmIndex,:))
+                results.groundMotion(gmIndex).SCT = SCT(gmIndex);
+                for rhIndex = 1:length(SF2)
+                    results.groundMotion(gmIndex).responseHistory(rhIndex) = IDA{gmIndex,rhIndex};
+                    results.groundMotion(gmIndex).responseHistory(rhIndex).maxDriftRatio = maxDriftRatio{gmIndex}(rhIndex);
+                end
             end
-            plot(xlim,[SCT_hat,SCT_hat],'k--');
-            plot(xlim,[SMT,SMT],'b--');
-            legendentries{end+1} = '$\hat{S}_{CT}$';
-            legendentries{end+1} = '$S_{MT}$';
 
-            grid on
-            xlim([0 15])
-            xlabel('Maximum story drift ratio (%)')
-            ylabel('Ground motion intensity, S_T (g)')
-            leg = legend(legendentries);
-            leg.Interpreter = 'latex';
+            % Plot stuff
+            plotIDAcurve(results)
 
             if obj.verbose
                 ida_time = toc(ida_tic);
@@ -994,7 +991,42 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 drawnow
             end
 
-        end
+        end %function:animateResponseHistory
+
+        function plotIDAcurve(results)
+            %%plotIDAcurve Plot the incremental dynamic analysis curve
+            %
+            %
+
+
+
+            figure
+            hold on
+            IDA_colors = parula(obj.optionsIDA.nMotions);
+            legendentries = cell(obj.optionsIDA.nMotions,1);
+            for gmIndex = 1:obj.optionsIDA.nMotions
+                drifts = zeros(1,)
+                for rhIndex = 1:obj.optionsIDA.nMotions
+                    drifts(rhIndex) = results.groundMotion(gmIndex).responseHistory(rhIndex).maxDriftRatio
+                    ST()
+                end
+                plot([0 drifts(goodDrifts)],[0 ST(goodDrifts)],'o-','Color',IDA_colors(gmIndex,:)))
+                % plot([0 maxDriftRatio{gmIndex}(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-','Color',IDA_colors(gmIndex,:))
+                legendentries{gmIndex} = ground_motions(gmIndex).ID;
+            end
+            plot(xlim,[SCT_hat,SCT_hat],'k--');
+            plot(xlim,[SMT,SMT],'b--');
+            legendentries{end+1} = '$\hat{S}_{CT}$';
+            legendentries{end+1} = '$S_{MT}$';
+
+            grid on
+            xlim([0 15])
+            xlabel('Maximum story drift ratio (%)')
+            ylabel('Ground motion intensity, S_T (g)')
+            leg = legend(legendentries);
+            leg.Interpreter = 'latex';
+
+        end %function:plotIDAcurve
     end %methods
 end %classdef:mdofShearBuilding2d
 
