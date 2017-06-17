@@ -95,6 +95,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
     % Incremental dynamic analysis options
 
+        SNRT    % Geometric mean of the 5% damped spectral intensity at the fundamental period
+
         % optionsIDA - struct containing settings for incremental dynamic analysis
         %
         % Contains the following fields:
@@ -103,9 +105,9 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
         %   ST                  - Vector of intensities to scale each ground motion to
         %   collapseDriftRatio  - Story drift ratio used to define collapse
         %   collapseProbability - Collapse probability being assessed
-        %   rating_DR           - Qualitative rating of
-        %   rating_TD           - Qualitative rating of
-        %   rating_MDL          - Qualitative rating of
+        %   rating_DR           - Qualitative rating of the design requirements
+        %   rating_TD           - Qualitative rating of the test data
+        %   rating_MDL          - Qualitative rating of the archetype models
         %
         optionsIDA = struct('tExtra',5,...
                             'nMotions',7,...
@@ -479,26 +481,32 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             %       Returns the results of a response history analysis of obj
             %       subject to ground motion stored in gmFile with timestep dt
             %       scaled by SF. Analysis concludes at tend. gmID and indexNum
-            %       are used for incremental dynamic analyses.
+            %       are used for incremental dynamic analyses and are optional
+            %       if an IDA is not being conducted.
             %
             %   results has the following fields:
             %
-            %   gmID
-            %   indexNum
-            %   SF
-            %   textOutput
-            %   groundMotion
-            %   totalDrift
-            %   storyShear
-            %   storyDrift
-            %   roofDrift
-            %   baseShear
+            %   gmID         -
+            %   indexNum     -
+            %   SF           - Scale factor used in the analysis
+            %   textOutput   - Text output from OpenSees
+            %   groundMotion - Scaled ground motion used as input
+            %   totalDrift   - Time history of the total drift of each story
+            %   storyShear   - Time history of story shears
+            %   storyDrift   - Time history of story drifts
+            %   roofDrift    - Time history of the total roof drift
+            %   baseShear    - Time history of the base shear
             %
 
             % Initialize Results
             results = struct;
-            results.gmID = gmID;
-            results.indexNum = indexNum;
+            if nargin < 6
+                gmID = '01a';
+                indexNum = 1;
+            else
+                results.gmID = gmID;
+                results.indexNum = indexNum;
+            end
             results.SF = SF;
 
             % Filenames
@@ -608,10 +616,10 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             end
         end %function:responseHistory
 
-        function [IDA,R_accepted] = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults)
-        % incrementalDynamicAnalysis Run an incremental dynamic analysis
-        %
-        %   IDA = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults) returns the
+        function results = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults)
+            %% incrementalDynamicAnalysis Run an incremental dynamic analysis
+            %
+            %   IDA = incrementalDynamicAnalysis(obj,gm_mat,pushoverResults) returns the
 
             if obj.verbose
                 fprintf('Running incremental dynamic analysis...\n');
@@ -623,14 +631,19 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             SMT = FEMAP695_SMT(obj.fundamentalPeriod,obj.seismicDesignCategory);
             % ST  = SMT*SF2;
             ST = obj.optionsIDA.ST;
-            SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
+            if ~isempty(obj.SNRT)
+                SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory,obj.SNRT);
+            else
+                SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
+            end
             SF2 = ST/SMT;
-            legendentries = cell(obj.optionsIDA.nMotions,1);
+
             maxDriftRatio = cell(obj.optionsIDA.nMotions,1);
             maxDriftRatio(:) = {zeros(1,length(ST))};
-            goodDrifts = false(obj.optionsIDA.nMotions,length(ST));
             SCT = zeros(obj.optionsIDA.nMotions,1);
             IDA = cell(obj.optionsIDA.nMotions,length(ST));
+            IDA(:) = {struct};
+
             parfor gmIndex = 1:obj.optionsIDA.nMotions
                 gmfile = scratchFile(obj,sprintf('acc%s.acc',ground_motions(gmIndex).ID));
                 dlmwrite(gmfile,ground_motions(gmIndex).normalized_acceleration*obj.g);
@@ -646,14 +659,14 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     end
                     SF = SF1*SF2(sfIndex);
                     IDA_part{sfIndex} = responseHistory(obj,gmfile,dt,SF,tend,ground_motions(gmIndex).ID,sfIndex);
+                    IDA_part{sfIndex}.ST = ST(sfIndex);
+                    maxDriftRatio{gmIndex}(sfIndex) = max(max(abs(IDA_part{sfIndex}.storyDrift))./obj.storyHeight);
                     switch IDA_part{sfIndex}.exitStatus
                         case 'Analysis Failed'
-                            maxDriftRatio{gmIndex}(sfIndex) = NaN;
                             if obj.verbose
                                 fprintf('Analysis failed\n');
                             end
                         case 'Analysis Successful'
-                            maxDriftRatio{gmIndex}(sfIndex) = max(max(abs(IDA_part{sfIndex}.storyDrift))./obj.storyHeight);
                             if obj.verbose
                                 fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio{gmIndex}(sfIndex)*100);
                             end
@@ -664,24 +677,27 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     end
                 end
                 IDA(gmIndex,:) = IDA_part;
-                goodDrifts(gmIndex,:) = ~isnan(maxDriftRatio{gmIndex});
-                SCT(gmIndex) = ST(find(maxDriftRatio{gmIndex} > obj.optionsIDA.collapseDriftRatio,1));
 
-                % plot([0; maxDriftRatio(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-')
-                legendentries{gmIndex} = ground_motions(gmIndex).ID; %#ok<PFOUS> Linter isn't recognizing this var is being used later
+                if any(maxDriftRatio{gmIndex} > obj.optionsIDA.collapseDriftRatio)
+                    SCT(gmIndex) = ST(find(maxDriftRatio{gmIndex} > obj.optionsIDA.collapseDriftRatio,1));
+                else
+                    SCT(gmIndex) = ST(end);
+                    warning('Building did not collapse!')
+                end
 
                 if obj.deleteFilesAfterAnalysis
                     delete(gmfile)
                 end
             end
 
-            goodRatio = sum(sum(goodDrifts))/(length(SF2)*obj.optionsIDA.nMotions);
             SCT_hat = median(SCT);
             CMR = SCT_hat/SMT;
+            SSF = FEMAP695_SSF(obj.fundamentalPeriod,pushoverResults.periodBasedDuctility,obj.seismicDesignCategory);
+            ACMR = SSF*CMR;
             beta_total = FEMAP695_beta_total(obj.optionsIDA.rating_DR,obj.optionsIDA.rating_TD,obj.optionsIDA.rating_MDL,pushoverResults.periodBasedDuctility);
-            ACMR = FEMAP695_ACMRxx(beta_total,obj.optionsIDA.collapseProbability);
+            ACMR20 = FEMAP695_ACMRxx(beta_total,obj.optionsIDA.collapseProbability);
 
-            if ACMR/CMR < 1
+            if ACMR < ACMR20
                 R_accepted = false;
                 R_text = 'unacceptable';
             else
@@ -689,27 +705,44 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 R_text = 'acceptable';
             end
 
-            figure
-            hold on
-            for gmIndex = 1:obj.optionsIDA.nMotions
-                plot([0 maxDriftRatio{gmIndex}(goodDrifts(gmIndex,:))*100],[0 ST(goodDrifts(gmIndex,:))],'o-')
-            end
-            plot(xlim,[SCT_hat,SCT_hat],'k--');
-            plot(xlim,[SMT,SMT],'b--');
-            legendentries{end+1} = '$\hat{S}_{CT}$';
-            legendentries{end+1} = '$S_{MT}$';
+            % Annoying struct stuff
+            names = fieldnames(IDA{1,1});
 
-            grid on
-            xlim([0 15])
-            xlabel('Maximum story drift ratio (%)')
-            ylabel('Ground motion intensity, S_T (g)')
-            leg = legend(legendentries);
-            leg.Interpreter = 'latex';
+            for gmIndex = 1:size(IDA,1)
+                for rhIndex = 1:size(IDA,2)
+                    if isempty(IDA{gmIndex,rhIndex})
+                        for fIndex = 1:length(names)
+                            IDA{gmIndex,rhIndex}.(names{fIndex}) = [];
+                        end
+                    end
+                end
+            end
+
+            % Return results
+            results.ACMR = ACMR;
+            results.ACMR20 = ACMR20;
+            results.beta_total = beta_total;
+            results.R_accepted = R_accepted;
+            results.SSF = SSF;
+            results.SMT = SMT;
+            results.SCT_hat = SCT_hat;
+            for gmIndex = 1:obj.optionsIDA.nMotions
+                results.groundMotion(gmIndex).ID  = ground_motions(gmIndex).ID;
+                results.groundMotion(gmIndex).SCT = SCT(gmIndex);
+                for rhIndex = 1:length(SF2)
+                    results.groundMotion(gmIndex).responseHistory(rhIndex) = IDA{gmIndex,rhIndex};
+                end
+                for rhIndex = 1:length(SF2)     % Two for loops are necessary because adding the maxDriftRatio field breaks pulling the structs out of the cell
+                    results.groundMotion(gmIndex).responseHistory(rhIndex).maxDriftRatio = maxDriftRatio{gmIndex}(rhIndex);
+                end
+            end
+
+            % Plot stuff
+            obj.plotIDAcurve(results)
 
             if obj.verbose
                 ida_time = toc(ida_tic);
-                fprintf('%.3g%% of analyses completed successfully.\n',goodRatio*100);
-                fprintf('ACMR = %.4g, CMR = %.4g, R is %s\n',ACMR,CMR,R_text);
+                fprintf('ACMR = %.4g, ACMR20 = %.4g, R is %s\n',ACMR,ACMR20,R_text);
                 fprintf('Incremental dynamic analysis took %g seconds.\n',ida_time);
             end
 
@@ -830,32 +863,95 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
         %% Plot Functions
 
-        function plotSampleResponse(results)
+        function plotSampleResponse(obj,results,varargin)
             %% PLOTSAMPLERESPONSE Plot selected time history results
             %
-            %    PLOTSAMPLERESPONSE(results) plots the ground motion and the
+            %   PLOTSAMPLERESPONSE(results) plots the ground motion and the
             %       total roof drift as two subplots in a single figure.
             %
+            %   PLOTSAMPLERESPONSE(results,'story',stories) plots the ground
+            %       motion and the story drift of the stories specified in the
+            %       vector stories.
+            %
+            if nargin > 2
+                plotRoofDrift = false;
+                for arg = 1:length(varargin)
+                    if ischar(varargin{arg})
+                        switch lower(varargin{arg})
+                            case 'roof'
+                                plotRoofDrift = true;
+                            case 'story'
+                                assert(isvector(varargin{arg+1}) && isnumeric(varargin{arg+1}),'stories should be a vector')
+                                stories = varargin{arg+1};
+                                plotStoryDrift = true;
+                            otherwise
+                                error('Invalid argument');
+                        end
+                    end
+                end
+            else
+                plotRoofDrift = true;
+                plotStoryDrift = false;
+            end
 
-            figure
-            subplot(211)
+            if plotStoryDrift && plotRoofDrift
+                nPlots = 3;
+            else
+                nPlots = 2;
+            end
+
+            fig = figure;
+            pos = fig.Position;
+            fig.Position = get(groot,'Screensize'); % Maximizing the figure window when drawing will reduce whitespace around plots
+
+            subplot(nPlots,1,1)
             plot(results.time,results.groundMotion,'-')
             grid on
             grid minor
+            yl = ylim;
+            ylim([-max(abs(yl)),max(abs(yl))])
             xlabel(sprintf('Time (%s)',obj.units.time))
             ylabel(sprintf('Acceleration (%s/%s^2)',obj.units.length,obj.units.time))
-            titleText = sprintf('Input Ground Motion (GM: %s, SF: %g)',results.gmID,results.SF);
+            if isfield(results,'gmID') && isfield(results,'ST')
+                titleText = sprintf('Input Ground Motion (GM: %s, S_T: %gg)',results.gmID,results.ST);
+            elseif isfield(results,'gmID')
+                titleText = sprintf('Input Ground Motion (GM: %s, SF: %g)',results.gmID,results.SF);
+            else
+                titleText = sprintf('Input Ground Motion (SF: %g)',results.SF);
+            end
             title(titleText)
 
-            subplot(212)
-            plot(results.time,results.roofDrift,'-')
-            grid on
-            grid minor
-            axisLimits = axis;
-            axis([axisLimits(1:2),-max(abs(axisLimits(3:4))),max(abs(axisLimits(3:4)))])
-            xlabel(sprintf('Time (%s)',obj.units.time))
-            ylabel(sprintf('Drift (%s)',obj.units.length))
-            title('Roof Drift')
+            if plotRoofDrift
+                subplot(nPlots,1,2)
+                plot(results.time,results.roofDrift,'-')
+                grid on
+                grid minor
+                yl = ylim;
+                ylim([-max(abs(yl)),max(abs(yl))])
+                xlabel(sprintf('Time (%s)',obj.units.time))
+                ylabel(sprintf('Drift (%s)',obj.units.length))
+                title('Total Roof Drift')
+            end
+
+            if plotStoryDrift
+                subplot(nPlots,1,nPlots)
+                hold on
+                legendentries = cell(length(stories),1);
+                for plotIndex = 1:length(stories)
+                    plot(results.time,results.storyDrift(:,stories(plotIndex)))
+                    legendentries{plotIndex} = sprintf('Story %i',stories(plotIndex));
+                end
+                grid on
+                grid minor
+                yl = ylim;
+                ylim([-max(abs(yl)),max(abs(yl))])
+                xlabel(sprintf('Time (%s)',obj.units.time))
+                ylabel(sprintf('Drift (%s)',obj.units.length))
+                legend(legendentries)
+                title('Story Drift')
+            end
+            fig.Position = pos;
+
 
         end %function:plotSampleResponse
 
@@ -907,7 +1003,49 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 drawnow
             end
 
-        end
+        end %function:animateResponseHistory
+
+        function plotIDAcurve(obj,results)
+            %% plotIDAcurve Plot the incremental dynamic analysis curve
+            %
+            %
+
+            nMotions   = length(results.groundMotion);
+            nHistories = length(results.groundMotion(1).responseHistory);
+
+            figure
+            hold on
+            IDA_colors = parula(nMotions);
+            legendentries = cell(nMotions,1);
+            for gmIndex = 1:nMotions
+                drifts = zeros(1,nHistories);
+                ST     = zeros(1,nHistories);
+                for rhIndex = 1:nHistories
+                    if isnan(results.groundMotion(gmIndex).responseHistory(rhIndex).maxDriftRatio)
+                        drifts(rhIndex) = NaN;
+                        ST(rhIndex)     = NaN;
+                    else
+                        drifts(rhIndex) = results.groundMotion(gmIndex).responseHistory(rhIndex).maxDriftRatio;
+                        ST(rhIndex)     = results.groundMotion(gmIndex).responseHistory(rhIndex).ST;
+                    end
+                end
+                goodDrifts = ~isnan(drifts);
+                plot([0 drifts(goodDrifts)],[0 ST(goodDrifts)],'o-','Color',IDA_colors(gmIndex,:))
+                legendentries{gmIndex} = results.groundMotion(gmIndex).ID;
+            end
+            plot(xlim,[results.SCT_hat,results.SCT_hat],'k--');
+            plot(xlim,[results.SMT,results.SMT],'b--');
+            legendentries{end+1} = '$\hat{S}_{CT}$';
+            legendentries{end+1} = '$S_{MT}$';
+
+            grid on
+            xlim([0 3*obj.optionsIDA.collapseDriftRatio])
+            xlabel('Maximum story drift ratio (%)')
+            ylabel('Ground motion intensity, S_T (g)')
+            leg = legend(legendentries);
+            leg.Interpreter = 'latex';
+
+        end %function:plotIDAcurve
     end %methods
 end %classdef:mdofShearBuilding2d
 
