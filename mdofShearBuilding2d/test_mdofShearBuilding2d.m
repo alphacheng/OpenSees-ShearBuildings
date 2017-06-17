@@ -102,7 +102,7 @@ case 'Analysis Successful'
     prePeakIndex = results.pushover.roofDrift < results.pushover.peakTotalDrift(nStories);
     designBaseShearDrift = interp1(results.pushover.baseShear(prePeakIndex),results.pushover.roofDrift(prePeakIndex),results.ELF.baseShear);
     effectiveYieldDrift = calcOverstr*designBaseShearDrift;
-    results.pushover.periodBasedDuctility = effectiveYieldDrift/results.pushover.peak80TotalDrift(nStories);
+    results.pushover.periodBasedDuctility = results.pushover.peak80TotalDrift(nStories)/effectiveYieldDrift;
 
     fprintf('Calculated overstrength = %g\n',calcOverstr)
 
@@ -129,7 +129,7 @@ case 'Analysis Successful'
     ylabel('Story')
     xlabel('Story Drift Ratio (%)')
     title('Pushover story drifts')
-    legend('V_{max}','V_{80}','Location','Southeast')
+    legend('V_{max}','V_{80}','Location','Southwest')
 
 otherwise
     fprintf(2,'Pushover analysis failed. See results for details.\n')
@@ -165,16 +165,20 @@ end
 %% Incremental Dynamic Analysis
 if runIDA
 
-[results.IDA,R_accepted] = incrementalDynamicAnalysis(bldg,'ground_motions.mat',results.pushover);
+if useCustomMotions
+    bldg.SNRT = FEMAP695_SNRT(RSNS(1:ceil(bldg.optionsIDA.nMotions/2)),spectra,bldg.fundamentalPeriod);
+end
+
+results.IDA = incrementalDynamicAnalysis(bldg,'ground_motions.mat',results.pushover);
 
 % Plot sample response history
 randGM = randi(bldg.optionsIDA.nMotions);
 randID = randi(length(bldg.optionsIDA.ST));
-while isempty(results.IDA{randGM,randID})
+while isempty(results.IDA.groundMotion(randGM).responseHistory(randID).gmID)
     randGM = randi(bldg.optionsIDA.nMotions);
     randID = randi(length(bldg.optionsIDA.ST));
 end
-bldg.plotSampleResponse(results.IDA{randGM,randID},'story',1:nStories,'roof')
+bldg.plotSampleResponse(results.IDA.groundMotion(randGM).responseHistory(randID),'story',1:nStories,'roof')
 
 end
 
@@ -249,6 +253,8 @@ end
 end
 %##############################################################################%
 %% Cleanup
+
+msgbox('Analysis Complete')
 
 for i = 1:length(neededPaths)
     rmpath(neededPaths{i})
