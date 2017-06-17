@@ -1046,6 +1046,34 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             leg.Interpreter = 'latex';
 
         end %function:plotIDAcurve
+
+        function plotStoryDriftAndShear(obj,results,stories)
+            %% plotStoryDriftAndShear Plot story shear against story drift.
+            %
+            %
+            %
+
+            if nargin == 2
+                stories = 1;
+            end
+
+            figure
+            hold on
+
+            legendentries = cell(1,length(stories));
+            for stIndex = 1:length(stories)
+                plot(results.storyDrift(:,stories(stIndex)),results.storyShear(:,stories(stIndex)))
+                legendentries{stIndex} = sprintf('Story %i',stories(stIndex));
+            end
+
+            legend(legendentries)
+            xlabel(sprintf('Story drift (%s)',obj.units.length))
+            ylabel(sprintf('Story shear (%s)',obj.units.force))
+            grid on
+            grid minor
+
+        end %function:plotStoryDriftAndShear
+
     end %methods
 end %classdef:mdofShearBuilding2d
 
