@@ -113,10 +113,10 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                             'nMotions',7,...
                             'ST',0.25:0.25:8,...
                             'collapseDriftRatio',0.05,...
-                            'collapseProbability',0.2,...
                             'rating_DR','C',...
                             'rating_TD','C',...
-                            'rating_MDL','C'...
+                            'rating_MDL','C',...
+                            'shortCircuit',true...
         );
 
     % Equivalent Lateral Force options
@@ -228,7 +228,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 fprintf(fid,'%s\n',obj.storySpringDefinition{i});
             end
             for i = 1:obj.nStories
-                fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1\n',i,i-1,i,i);
+                fprintf(fid,'element zeroLength %i %i %i -mat %i -dir 1 -doRayleigh 1\n',i,i-1,i,i);
             end
 
         end %function:constructBuilding
@@ -513,6 +513,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             filename_input              = obj.scratchFile(sprintf('mdofShearBuilding2d_input_%s_%i.tcl',gmID,indexNum));
             filename_output_timeSeries  = obj.scratchFile(sprintf('mdofShearBuilding2d_timeSeries_%s_%i.out',gmID,indexNum));
             filename_output_def         = obj.scratchFile(sprintf('mdofShearBuilding2d_disp_%s_%i.out',gmID,indexNum));
+            filename_output_vel         = obj.scratchFile(sprintf('mdofShearBuilding2d_vel_%s_%i.out',gmID,indexNum));
             filename_output_force       = obj.scratchFile(sprintf('mdofShearBuilding2d_force_%s_%i.out',gmID,indexNum));
 
             % Create .tcl file
@@ -526,6 +527,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
 
             fprintf(fid,'recorder Node -file {%s} -timeSeries 1 -node 0 -dof 1 accel\n',filename_output_timeSeries);
             fprintf(fid,'recorder Node -file {%s} -time -nodeRange 1 %i -dof 1 disp \n',filename_output_def,obj.nStories);
+            fprintf(fid,'recorder Node -file {%s} -time -nodeRange 1 %i -dof 1 vel  \n',filename_output_vel,obj.nStories);
             fprintf(fid,'recorder Element -file {%s} -eleRange 1 %i force \n',filename_output_force,obj.nStories);
             fprintf(fid,'record \n');
 
@@ -599,6 +601,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             temp = dlmread(filename_output_def);
             results.time = temp(:,1);
             results.totalDrift = temp(:,2:end);
+            temp = dlmread(filename_output_vel);
+            results.totalVeloc = temp(:,2:end);
             temp = dlmread(filename_output_force);
             results.storyShear = temp(:,2:2:end);
 
@@ -644,7 +648,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             IDA = cell(obj.optionsIDA.nMotions,length(ST));
             IDA(:) = {struct};
 
-            parfor gmIndex = 1:obj.optionsIDA.nMotions
+            for gmIndex = 1:obj.optionsIDA.nMotions
                 gmfile = scratchFile(obj,sprintf('acc%s.acc',ground_motions(gmIndex).ID));
                 dlmwrite(gmfile,ground_motions(gmIndex).normalized_acceleration*obj.g);
 
@@ -660,7 +664,11 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     SF = SF1*SF2(sfIndex);
                     IDA_part{sfIndex} = responseHistory(obj,gmfile,dt,SF,tend,ground_motions(gmIndex).ID,sfIndex);
                     IDA_part{sfIndex}.ST = ST(sfIndex);
+
                     maxDriftRatio{gmIndex}(sfIndex) = max(max(abs(IDA_part{sfIndex}.storyDrift))./obj.storyHeight);
+
+                    IDA_part{sfIndex}.E_EQ = energyTest(obj,IDA_part{sfIndex});%,gm_velocity);
+
                     switch IDA_part{sfIndex}.exitStatus
                         case 'Analysis Failed'
                             if obj.verbose
@@ -671,7 +679,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                                 fprintf('Maximum story drift ratio = %5.2f%%\n',maxDriftRatio{gmIndex}(sfIndex)*100);
                             end
                     end
-                    if maxDriftRatio{gmIndex}(sfIndex) > 3*obj.optionsIDA.collapseDriftRatio
+                    if obj.optionsIDA.shortCircuit && (maxDriftRatio{gmIndex}(sfIndex) > 3*obj.optionsIDA.collapseDriftRatio)
                         maxDriftRatio{gmIndex}(sfIndex+1:end) = NaN;
                         break
                     end
@@ -695,7 +703,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             SSF = FEMAP695_SSF(obj.fundamentalPeriod,pushoverResults.periodBasedDuctility,obj.seismicDesignCategory);
             ACMR = SSF*CMR;
             beta_total = FEMAP695_beta_total(obj.optionsIDA.rating_DR,obj.optionsIDA.rating_TD,obj.optionsIDA.rating_MDL,pushoverResults.periodBasedDuctility);
-            ACMR20 = FEMAP695_ACMRxx(beta_total,obj.optionsIDA.collapseProbability);
+            ACMR20 = FEMAP695_ACMRxx(beta_total,0.2);
 
             if ACMR < ACMR20
                 R_accepted = false;
@@ -705,7 +713,8 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 R_text = 'acceptable';
             end
 
-            % Annoying struct stuff
+            % Annoying struct stuff - need to populate missing fields so that
+            % things slot in nicely
             names = fieldnames(IDA{1,1});
 
             for gmIndex = 1:size(IDA,1)
@@ -836,8 +845,17 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             end
 
             for i = 1:obj.nStories
-                spring(i).K0       = designStiffness(i);            % elastic stiffness
-                spring(i).as       = springGivens.as;               % strain hardening ratio
+                if springGivens.includePDelta
+                    Px = sum(obj.storyMass(i:end))*obj.g;
+                    theta = (Px*analysisResults.allowableDrift(i)*obj.impFactor)/(analysisResults.storyShear(i)*obj.storyHeight(i)*obj.deflAmplFact);
+                    theta_max = min(0.5/obj.deflAmplFact,0.25);
+                    theta = min(theta,theta_max);
+                else
+                    theta = 0;
+                end
+                spring(i).K0       = (1-theta)*designStiffness(i);            % elastic stiffness
+                spring(i).as       = springGivens.as - theta;               % strain hardening ratio
+                spring(i).ad       = springGivens.ad - theta;               % strain hardening ratio
                 spring(i).Lambda_S = springGivens.Lambda_S;         % Cyclic deterioration parameter - strength
                 spring(i).Lambda_K = springGivens.Lambda_K;         % Cyclic deterioration parameter - stiffness
                 spring(i).c_S      = springGivens.c_S;              % rate of deterioration - strength
@@ -845,14 +863,15 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                 spring(i).Res      = springGivens.Res;              % residual strength ratio
                 spring(i).D        = springGivens.D;                % rate of cyclic deterioration
                 spring(i).nFactor  = springGivens.nFactor;          % elastic stiffness amplification factor
+                spring(i).theta    = theta;
 
-                spring(i).V_c = designStrength(i);                  % strength at capping
+                spring(i).V_c = (1-theta)*designStrength(i);                  % strength at capping
                 spring(i).V_y = springGivens.C_yc*spring(i).V_c;    % effective yield strength
 
                 spring(i).defl_y  = spring(i).V_y./spring(i).K0;                                                    % deflection at yield
                 spring(i).defl_p  = (spring(i).V_c-spring(i).V_y)./(spring(i).as*spring(i).K0);                     % pre-capping deflection
                 % spring(i).defl_pc = springGivens.C_pcp*spring(i).defl_p;                                            % post-capping deflection
-                spring(i).defl_pc = spring(i).V_c/(springGivens.ad*spring(i).K0);
+                spring(i).defl_pc = spring(i).V_c/(spring(i).ad*spring(i).K0);
                 % spring(i).defl_pc = spring(i).V_c*tand(springGivens.theta_pc);
                 spring(i).defl_u  = springGivens.C_upc*(spring(i).defl_y + spring(i).defl_p + spring(i).defl_pc);   % ultimate deflection capacity
 
@@ -1030,7 +1049,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
                     end
                 end
                 goodDrifts = ~isnan(drifts);
-                plot([0 drifts(goodDrifts)],[0 ST(goodDrifts)],'o-','Color',IDA_colors(gmIndex,:))
+                plot([0 drifts(goodDrifts)*100],[0 ST(goodDrifts)],'o-','Color',IDA_colors(gmIndex,:))
                 legendentries{gmIndex} = results.groundMotion(gmIndex).ID;
             end
             plot(xlim,[results.SCT_hat,results.SCT_hat],'k--');
@@ -1039,7 +1058,7 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             legendentries{end+1} = '$S_{MT}$';
 
             grid on
-            xlim([0 3*obj.optionsIDA.collapseDriftRatio])
+            xlim([0 3*obj.optionsIDA.collapseDriftRatio*100])
             xlabel('Maximum story drift ratio (%)')
             ylabel('Ground motion intensity, S_T (g)')
             leg = legend(legendentries);
@@ -1073,6 +1092,31 @@ classdef mdofShearBuilding2d < OpenSeesAnalysis
             grid minor
 
         end %function:plotStoryDriftAndShear
+
+        function plotBackboneCurves(obj,spring)
+            figure
+            hold on
+            endpoint = zeros(obj.nStories,1);
+            legendentries = cell(obj.nStories,1);
+            for i = 1:obj.nStories
+                materialDefinition = spring(i).definition;
+                matTagLoc = strfind(materialDefinition,num2str(i));
+                materialDefinition(matTagLoc(1)) = '1';
+                endpoint(i) = spring(i).defl_y + spring(i).defl_p + spring(i).defl_pc;
+                anaobj = UniaxialMaterialAnalysis(materialDefinition);
+                rateType    = 'StrainRate';
+                rateValue   = 0.001;
+                backbone = anaobj.runAnalysis([0 endpoint(i)],rateType,rateValue,i);
+                legendentries{i} = sprintf('Story %i',i);
+                plot(backbone.disp,backbone.force)
+            end
+            xlim([0 1.1*max(endpoint)])
+            title('Backbone curves')
+            xlabel(sprintf('Deflection (%s)',obj.units.length))
+            ylabel(sprintf('Force (%s)',obj.units.force))
+            legend(legendentries)
+            grid on
+        end
 
     end %methods
 end %classdef:mdofShearBuilding2d
