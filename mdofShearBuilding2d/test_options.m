@@ -1,30 +1,29 @@
 %##############################################################################%
 %% Define Building
-nStories = 6;
-bldg = mdofShearBuilding2d(nStories);
+% nStories = 6;
+% bldg = mdofShearBuilding2d(nStories);
 
 % Units
-bldg.units.force = 'kip';
-bldg.units.mass  = 'kslug';
-bldg.units.length= 'ft';
-bldg.units.time  = 'sec';
+options.units.force = 'kip';
+options.units.mass  = 'kslug';
+options.units.length= 'ft';
+options.units.time  = 'sec';
 
-bldg.g = 32.2;                                  % Acceleration due to gravity
+options.g = 32.2;                                  % Acceleration due to gravity
 
-bldg.storyHeight = ones(1,nStories)*15;         % Story heights (ft)
-bldg.storyHeight(1) = 20;
-storyDL = ones(1,nStories)*0.080;               % Story dead loads (ksf)
-storyDL(end) = 0.030;
-storyArea = 90*90*ones(1,nStories);             % Story areas (ft^2)
-bldg.storyMass = (storyDL .* storyArea)/bldg.g; % Story masses (kslug)
+options.storyHeight = 15;         % Story heights (ft)
+options.firstHeight = 20;
+options.storyDL     = 0.080;               % Story dead loads (ksf)
+options.roofDL      = 0.080;
+options.storyArea   = 90*90;           % Story areas (ft^2)
 
-bldg.seismicDesignCategory = 'Dmax';
-bldg.respModCoeff = 8;
-bldg.deflAmplFact = 8;
-bldg.overstrengthFactor = 3;
-bldg.impFactor = 1;
+options.seismicDesignCategory = 'Dmax';
+options.respModCoeff = 8;
+options.deflAmplFact = 8;
+options.overstrengthFactor = 3;
+options.impFactor = 1;
 
-springGivens.as       =  0.05;  % strain hardening ratio
+springGivens.as       =  0.03;  % strain hardening ratio
 springGivens.Lambda_S = 10.00;  % Cyclic deterioration parameter - strength
 springGivens.Lambda_K = 10.00;  % Cyclic deterioration parameter - stiffness
 springGivens.c_S      =  1.00;  % rate of deterioration - strength
@@ -36,7 +35,8 @@ springGivens.C_yc     =  0.80;  % ratio of yield strength to capping strength
 springGivens.C_pcp    =  2.00;  % ratio of post-capping deflection to pre-capping deflection
 springGivens.C_upc    = 20.00;  % ratio of ultimate deflection to u_y + u_p + u_pc
 springGivens.theta_pc = 0.3;     % angle of post-capping stiffness (degrees)
-springGivens.ad       = 0.15;    % deterioration stiffness ratio
+springGivens.ad       = 0.1;    % deterioration stiffness ratio
+springGivens.includePDelta = false;
 
 springGivens.stiffnessSafety = 1.0;
 springGivens.strengthSafety  = 1.0;
@@ -47,13 +47,17 @@ springGivens.minimumRatio = 0.7;
 
 %##############################################################################%
 %% Analysis Options
-bldg.echoOpenSeesOutput = false;
-bldg.deleteFilesAfterAnalysis = true;
+options.echoOpenSeesOutput = false;
+options.deleteFilesAfterAnalysis = true;
 
-bldg.verbose   = true ; % Toggle verbose output
+options.verbose   = true ; % Toggle verbose output
 runPushover    = true ; % Toggle pushover analysis
 runIDA         = true ; % Toggle IDA
 plotHysteretic = false; % Toggle plotting hysteretic curves
+
+options.minR = 1;
+options.maxR = 8;
+options.Rtol = 0.5;
 
 %-------------------------------------------------------------------------------
 % Equivalent lateral force options
@@ -64,55 +68,51 @@ diffTol = 1e-3;             % Tolerance for iteration
 
 %-------------------------------------------------------------------------------
 % Pushover analysis options
-bldg.pushover_stepSize = 0.001;
-bldg.pushover_maxDrift = min(bldg.storyHeight);
+options.pushover_stepSize = 0.001;
+options.pushover_maxDrift = min(options.storyHeight);
 
-bldg.optionsPushover.constraints.type = 'Plain';
-bldg.optionsPushover.constraints.penalty.alphaS = 1.0e12;
-bldg.optionsPushover.constraints.penalty.alphaM = 1.0e12;
+options.pushover.constraints.type = 'Plain';
+options.pushover.constraints.penalty.alphaS = 1.0e12;
+options.pushover.constraints.penalty.alphaM = 1.0e12;
 
-bldg.optionsPushover.test.type       = 'NormDispIncr';
-bldg.optionsPushover.test.tolerance  = [1e-5,1e-4,1e-3];
-bldg.optionsPushover.test.iterations = 10;
-bldg.optionsPushover.test.print      = 0;
-bldg.optionsPushover.test.normType   = 2;
+options.pushover.test.type       = 'NormDispIncr';
+options.pushover.test.tolerance  = [1e-5,1e-4,1e-3];
+options.pushover.test.iterations = 10;
+options.pushover.test.print      = 0;
+options.pushover.test.normType   = 2;
 
-bldg.optionsPushover.algorithm = { 'KrylovNewton','Newton','ModifiedNewton' };
+options.pushover.algorithm = { 'KrylovNewton','Newton','ModifiedNewton' };
 
 %-------------------------------------------------------------------------------
 % Response history options
-bldg.damping_ModeA  = 1;             % Mode A for rayleigh damping
-if nStories >= 3
-    bldg.damping_ModeB  = 3;             % Mode B for rayleigh damping
-else
-    bldg.damping_ModeB = nStories;
-end
-bldg.damping_RatioA = 0.05;          % Damping ratio for mode A
-bldg.damping_RatioB = 0.05;          % Damping ratio for mode B
+options.damping_ModeA  = 1;             % Mode A for rayleigh damping
+options.damping_ModeB  = 3;             % Mode B for rayleigh damping
+options.damping_RatioA = 0.05;          % Damping ratio for mode A
+options.damping_RatioB = 0.05;          % Damping ratio for mode B
 
-bldg.optionsResponseHistory.constraints.type = 'Transformation';
-bldg.optionsResponseHistory.constraints.penalty.alphaS = 1.0e12;
-bldg.optionsResponseHistory.constraints.penalty.alphaM = 1.0e12;
+options.responseHistory.constraints.type = 'Transformation';
+options.responseHistory.constraints.penalty.alphaS = 1.0e12;
+options.responseHistory.constraints.penalty.alphaM = 1.0e12;
 
-bldg.optionsResponseHistory.test.type       = 'NormDispIncr';
-bldg.optionsResponseHistory.test.tolerance  = [1e-5,1e-4,1e-3];
-bldg.optionsResponseHistory.test.iterations = 10;
-bldg.optionsResponseHistory.test.print      = 0;
-bldg.optionsResponseHistory.test.normType   = 2;
+options.responseHistory.test.type       = 'NormDispIncr';
+options.responseHistory.test.tolerance  = [1e-5,1e-4,1e-3];
+options.responseHistory.test.iterations = 10;
+options.responseHistory.test.print      = 0;
+options.responseHistory.test.normType   = 2;
 
-bldg.optionsResponseHistory.algorithm = { 'Newton','KrylovNewton','ModifiedNewton' };
+options.responseHistory.algorithm = { 'KrylovNewton','Newton','ModifiedNewton' };
 
 %-------------------------------------------------------------------------------
 % Incremental dynamic analysis options
 useCustomMotions = false;
 RSNS = [953 960 1602 1787 169 174 1111 1116 1158 1148 900 848 752 767 1633 721 725 829 1244 1485 68 125];
 spectra = '/home/petertalley/Downloads/Updated_NGA_West2_flatfiles_part1/NGA_West2_5%_Damped_Spectral_Intensity.csv';
-bldg.optionsIDA.nMotions = 7;                              % Number of ground motions to analyze
-bldg.optionsIDA.tExtra = 5;                                 % Extra analysis time after end of ground motion
-bldg.optionsIDA.collapseDriftRatio = 0.05;                  % Story drift ratio that defines collapse
-bldg.optionsIDA.ST = 0.25:0.25:8;
-bldg.optionsIDA.collapseProbability = 0.2;
-bldg.optionsIDA.rating_DR = 'C';
-bldg.optionsIDA.rating_TD = 'C';
-bldg.optionsIDA.rating_MDL = 'C';
+options.IDA.nMotions = 7;                              % Number of ground motions to analyze
+options.IDA.tExtra = 5;                                 % Extra analysis time after end of ground motion
+options.IDA.collapseDriftRatio = 0.05;                  % Story drift ratio that defines collapse
+options.IDA.ST = [0.25:0.125:4 , 4.25:0.25:8];
+options.IDA.rating_DR = 'C';
+options.IDA.rating_TD = 'C';
+options.IDA.rating_MDL = 'C';
+options.IDA.shortCircuit = true;
 % SF2 = [0:0.25:1.5 , 2:0.5:5 , 5.75:0.75:8]; % Scale factors to use for each IDA curve
