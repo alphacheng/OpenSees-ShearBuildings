@@ -648,7 +648,7 @@ methods
         IDA = cell(obj.optionsIDA.nMotions,length(ST));
         IDA(:) = {struct};
 
-        for gmIndex = 1:obj.optionsIDA.nMotions
+        parfor gmIndex = 1:obj.optionsIDA.nMotions
             gmfile = scratchFile(obj,sprintf('acc%s.acc',ground_motions(gmIndex).ID));
             dlmwrite(gmfile,ground_motions(gmIndex).normalized_acceleration*obj.g);
 
@@ -882,7 +882,7 @@ methods
 
     %% Plot Functions
 
-    function plotSampleResponse(obj,results,varargin)
+    function fig = plotSampleResponse(obj,results,varargin)
         %% PLOTSAMPLERESPONSE Plot selected time history results
         %
         %   PLOTSAMPLERESPONSE(results) plots the ground motion and the
@@ -971,6 +971,9 @@ methods
         end
         fig.Position = pos;
 
+        if nargout == 0
+            clear fig
+        end
 
     end %function:plotSampleResponse
 
@@ -1024,7 +1027,7 @@ methods
 
     end %function:animateResponseHistory
 
-    function plotIDAcurve(obj,results)
+    function fig = plotIDAcurve(obj,results)
         %% plotIDAcurve Plot the incremental dynamic analysis curve
         %
         %
@@ -1032,7 +1035,7 @@ methods
         nMotions   = length(results.groundMotion);
         nHistories = length(results.groundMotion(1).responseHistory);
 
-        figure
+        fig = figure;
         hold on
         IDA_colors = parula(nMotions);
         legendentries = cell(nMotions,1);
@@ -1064,9 +1067,13 @@ methods
         leg = legend(legendentries);
         leg.Interpreter = 'latex';
 
+        if nargout == 0
+            clear fig
+        end
+
     end %function:plotIDAcurve
 
-    function plotStoryDriftAndShear(obj,results,stories)
+    function fig = plotStoryDriftAndShear(obj,results,stories)
         %% plotStoryDriftAndShear Plot story shear against story drift.
         %
         %
@@ -1076,7 +1083,7 @@ methods
             stories = 1;
         end
 
-        figure
+        fig = figure;
         hold on
 
         legendentries = cell(1,length(stories));
@@ -1091,10 +1098,14 @@ methods
         grid on
         grid minor
 
+        if nargout == 0
+            clear fig
+        end
+
     end %function:plotStoryDriftAndShear
 
-    function plotBackboneCurves(obj,spring)
-        figure
+    function fig = plotBackboneCurves(obj,spring)
+        fig = figure;
         hold on
         endpoint = zeros(obj.nStories,1);
         legendentries = cell(obj.nStories,1);
@@ -1116,6 +1127,9 @@ methods
         ylabel(sprintf('Force (%s)',obj.units.force))
         legend(legendentries)
         grid on
+        if nargout == 0
+            clear fig
+        end
     end
 
 end %methods
