@@ -667,7 +667,7 @@ methods
 
                 maxDriftRatio{gmIndex}(sfIndex) = max(max(abs(IDA_part{sfIndex}.storyDrift))./obj.storyHeight);
 
-                IDA_part{sfIndex}.E_EQ = energyTest(obj,IDA_part{sfIndex});%,gm_velocity);
+                IDA_part{sfIndex}.E_EQ = energyTest(obj,IDA_part{sfIndex});
 
                 switch IDA_part{sfIndex}.exitStatus
                     case 'Analysis Failed'
