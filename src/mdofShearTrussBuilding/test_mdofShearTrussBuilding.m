@@ -104,10 +104,10 @@ bldg.optionsResponseHistory.algorithm = { 'KrylovNewton','Newton','ModifiedNewto
 
 %-------------------------------------------------------------------------------
 % Incremental dynamic analysis options
-bldg.optionsIDA.nMotions = 7;                              % Number of ground motions to analyze
+bldg.optionsIDA.nMotions = 12;                              % Number of ground motions to analyze
 bldg.optionsIDA.tExtra = 5;                                 % Extra analysis time after end of ground motion
 bldg.optionsIDA.collapseDriftRatio = 0.05;                  % Story drift ratio that defines collapse
-bldg.optionsIDA.ST = [0.5:0.5:3 3.25:0.25:6]; %#
+bldg.optionsIDA.ST = [0.5:0.5:2.5 2.75:0.25:8];
 bldg.optionsIDA.rating_DR  = 'C';
 bldg.optionsIDA.rating_TD  = 'C';
 bldg.optionsIDA.rating_MDL = 'C';
@@ -128,49 +128,45 @@ for i = 1:nStories
     bldg.storyTrussDefinition{i} = sprintf('uniaxialMaterial Elastic %i %g',i*10,trussModulus(i));
 end
 
+SF1 = FEMAP695_SF1(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
+SF2 = bldg.optionsIDA.ST/FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
+SF  = SF1*SF2;
+
 load('../ground_motions.mat')
 gm(bldg.optionsIDA.nMotions) = struct;
-for gmIndex = 1:bldg.optionsIDA.nMotions
+parfor gmIndex = 1:bldg.optionsIDA.nMotions
     gmID = ground_motions(gmIndex).ID;
     gmFile = scratchFile(bldg,sprintf('acc%s.acc',gmID));
     dlmwrite(gmFile,ground_motions(gmIndex).normalized_acceleration*bldg.g);
     dt     = ground_motions(gmIndex).dt;
     tEnd   = ground_motions(gmIndex).time(end);
-    SF1 = FEMAP695_SF1(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
-    SF2 = bldg.optionsIDA.ST/FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
 
+    rh = cell(nHistories,1); % Operating on structs in isolate simplifies adding things to them
     for index = 1:nHistories
-        SF = SF1*SF2(index);
-        gm(gmIndex).rh(index) = bldg.responseHistory(gmFile,dt,SF,tEnd,gmID,index);
+        rh{index} = bldg.responseHistory(gmFile,dt,SF(index),tEnd,gmID,index); %#ok<PFBNS>
+        rh{index}.energy = bldg.energyCriterion(rh{index});
+        rh{index}.maxDriftRatio = max(max(abs(rh{index}.storyDrift))./bldg.storyHeight);
     end
-    for index = 1:length(bldg.optionsIDA.ST)
-        gm(gmIndex).rh(index).energy = bldg.energyCriterion(gm(gmIndex).rh(index));
-        gm(gmIndex).rh(index).maxDriftRatio = max(max(abs(gm(gmIndex).rh(index).storyDrift))./bldg.storyHeight);
+    rh = [rh{:}];
+    temp = [rh.energy];
+    gm(gmIndex).maxDriftRatio = [rh.maxDriftRatio];
+    gm(gmIndex).collapseIndex = find(~isnan([temp.failureIndex]),1);
+    gm(gmIndex).rh = rh;
+
+    if bldg.deleteFilesAfterAnalysis
+        delete(gmFile)
     end
-    temp = [gm(gmIndex).rh.energy];
-    gm(gmIndex).maxEnergyRatio = max([temp.norm_gravity]./[temp.earthquake]);
-    gm(gmIndex).maxDriftRatio = [gm(gmIndex).rh.maxDriftRatio];
-    failure = [temp.failureIndex];
-    gm(gmIndex).collapseIndex = find(~isnan(failure),1);
 end
 
 figure
 hold on
 for gmIndex = 1:bldg.optionsIDA.nMotions
-    plot([0 gm(gmIndex).maxDriftRatio*100],[0 bldg.optionsIDA.ST],'o-')
+    collapse = gm(gmIndex).collapseIndex;
+    plot([0 gm(gmIndex).maxDriftRatio(1:collapse)*100],[0 bldg.optionsIDA.ST(1:collapse)],'ko-')
+    plot(gm(gmIndex).maxDriftRatio(collapse)*100,bldg.optionsIDA.ST(collapse),'k.','MarkerSize',10)
 end
-xlim([0 15])
+xlim([0 3*bldg.optionsIDA.collapseDriftRatio*100])
 xlabel('Maximum Story Drift Ratio (%)')
-ylabel('Ground Motion Intensity S_T (g)')
-grid on
-
-figure
-hold on
-for gmIndex = 1:bldg.optionsIDA.nMotions
-    plot([0 gm(gmIndex).maxEnergyRatio],[0 bldg.optionsIDA.ST],'o-')
-end
-xlim([0 1])
-xlabel('Maximum Energy Ratio (unitless)')
 ylabel('Ground Motion Intensity S_T (g)')
 grid on
 
