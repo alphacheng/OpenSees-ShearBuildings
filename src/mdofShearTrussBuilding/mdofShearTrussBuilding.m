@@ -12,6 +12,7 @@ properties
 % Building definition
 
     nStories                        % Number of stories
+    includeExplicitPDelta = true    % Set whether to include gravity loads
 
     storyMass                       % Mass of each story
     storyHeight                     % Height of each story
@@ -19,6 +20,11 @@ properties
     storyTrussDefinition            % OpenSees uniaxial material definition for the trusses
 
     fundamentalPeriod               % Fundamental period of the structure
+
+    damping_ModeA  = 1;             % Mode A for rayleigh damping
+    damping_ModeB  = 3;             % Mode B for rayleigh damping
+    damping_RatioA = 0.02;          % Damping ratio for mode A
+    damping_RatioB = 0.02;          % Damping ratio for mode B
 
 % Gravity load options
 
@@ -96,11 +102,6 @@ properties
     );
 
 % Response history options
-
-    damping_ModeA  = 1;             % Mode A for rayleigh damping
-    damping_ModeB  = 3;             % Mode B for rayleigh damping
-    damping_RatioA = 0.02;          % Damping ratio for mode A
-    damping_RatioB = 0.02;          % Damping ratio for mode B
 
     % optionsResponseHistory - struct containing settings for response history analysis
     %
@@ -182,7 +183,7 @@ function obj = mdofShearTrussBuilding(nStories)
     obj.nStories = nStories;
 end
 
-%% n
+%% Shared model functions ######################################################
 function constructBuilding(obj,fid)
 %% CONSTRUCTBUILDING Create the OpenSees model based on current properties
 %
@@ -258,6 +259,57 @@ end %function:applyGravityLoads
 %% Analyses ####################################################################
 %###############################################################################
 
+function [eigenvals,eigenvecs] = eigenvalues(obj)
+%% EIGENVALUES Eigenvalue analysis of system.
+%
+%   eigenvals = EIGENVALUES(obj) returns the eigenvalues of obj in
+%       the vector eigenvals. Note that the eigenvalues are equal to
+%       the square of the circular natural frequencies, not the
+%       frequencies themselves.
+%
+%   [eigenvals,eigenvecs] = EIGENVALUES(obj) returns the eigenvalues
+%       in the vector eigenvals and the eigenvectors of the first
+%       mode of all nodes of obj in the vector eigenvecs.
+%
+
+    filename_input = obj.scratchFile('mdofShearBuilding2d_input.tcl');
+    filename_vals  = obj.scratchFile('mdofShearBuilding2d_vals.out');
+    filename_vecs  = obj.scratchFile('mdofShearBuilding2d_vecs.out');
+
+    fid = fopen(filename_input,'w');
+
+    obj.constructBuilding(fid)
+    if obj.includeExplicitPDelta
+        obj.applyGravityLoads(fid)
+    end
+
+    fprintf(fid,'set eigs [eigen -fullGenLapack %i]\n',obj.nStories);
+    fprintf(fid,'set eigenvalues $eigs\n');
+    fprintf(fid,'set vecs {}\n');
+    fprintf(fid,'set vecfid [open %s w+]\n',obj.path_for_tcl(filename_vecs));
+    fprintf(fid,'for {set i 1} {$i <= %i} {incr i} {\n',obj.nStories);
+    fprintf(fid,'  lappend vecs [nodeEigenvector $i 1]\n');
+    fprintf(fid,'  puts $vecfid [lindex $vecs [expr $i - 1] 0]\n');
+    fprintf(fid,'}\n');
+    fprintf(fid,'set eigfid [open %s w+]\n',obj.path_for_tcl(filename_vals));
+    fprintf(fid,'puts $eigfid $eigs\n');
+    fprintf(fid,'close $eigfid\n');
+    fprintf(fid,'close $vecfid\n');
+    fclose(fid);
+
+    [~,~] = obj.runOpenSees(filename_input);
+
+    eigenvals = dlmread(filename_vals);
+    if nargout == 2
+        eigenvecs = dlmread(filename_vecs);
+    end
+
+    if obj.deleteFilesAfterAnalysis
+        delete(filename_input,filename_vals,filename_vecs);
+    end
+
+end %function:eigenvalues
+
 function results = responseHistory(obj,groundMotionFilename,dt,SF,tEnd,gmID,indexNum)
 %% RESPONSEHISTORY Perform response history analysis
 %
@@ -307,7 +359,9 @@ function results = responseHistory(obj,groundMotionFilename,dt,SF,tEnd,gmID,inde
     fid = fopen(filenames.input,'w');
 
     obj.constructBuilding(fid)
-    obj.applyGravityLoads(fid)
+    if obj.includeExplicitPDelta
+        obj.applyGravityLoads(fid)
+    end
 
     fprintf(fid,'timeSeries Path 1 -dt %g -filePath {%s} -factor %g\n',dt,groundMotionFilename,SF);
     fprintf(fid,'pattern UniformExcitation 1 1 -accel 1\n');
