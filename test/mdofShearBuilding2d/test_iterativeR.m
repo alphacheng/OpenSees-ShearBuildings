@@ -1,12 +1,6 @@
 % test_iterativeR.m
 
 clear all; close all; clc;   %#ok<CLALL>
-neededPaths={'../'
-             '../UniaxialMaterialAnalysis'};
-
-for i = 1:length(neededPaths)
-    addpath(neededPaths{i})
-end
 
 if isempty(gcp)
     parpool;
@@ -116,10 +110,6 @@ while complete == false
     %         end
     %     end
     % end
-end
-
-for i = 1:length(neededPaths)
-    rmpath(neededPaths{i})
 end
 
 toc

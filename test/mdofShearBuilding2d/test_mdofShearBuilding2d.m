@@ -6,12 +6,6 @@
 
 tic
 clear all; close all; clc;   %#ok<CLALL>
-neededPaths={'../'
-             '../UniaxialMaterialAnalysis'};
-
-for i = 1:length(neededPaths)
-    addpath(neededPaths{i})
-end
 
 results = struct;
 
@@ -255,9 +249,5 @@ end
 %% Cleanup
 
 msgbox('Analysis Complete')
-
-for i = 1:length(neededPaths)
-    rmpath(neededPaths{i})
-end
 
 toc
