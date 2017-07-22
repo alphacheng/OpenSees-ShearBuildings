@@ -488,13 +488,17 @@ function energy = energyCriterion(obj,results)
     E_G = -u*M*obj.g;
     E_G_norm = E_G - E_G(1);
 
-    failureIndex = find(E_G_norm > E_EQ, 1);
-    if isempty(failureIndex)
-        failureIndex = NaN;
+    collapseIndex = find(E_G_norm > E_EQ, 1);
+    if isempty(collapseIndex)
+        collapseIndex = NaN;
+        collapse = false;
+    else
+        collapse = true;
     end
 
     energy = struct;
-    energy.failureIndex = failureIndex;
+    energy.collapse = collapse;
+    energy.collapseIndex = collapseIndex;
     energy.earthquake   = E_EQ;
     energy.gravity      = E_G;
     energy.norm_gravity = E_G_norm;
