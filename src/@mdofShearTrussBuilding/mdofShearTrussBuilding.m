@@ -317,7 +317,7 @@ function [eigenvals,eigenvecs] = eigenvalues(obj)
 
 end %function:eigenvalues
 
-function results = responseHistory(obj,groundMotionFilename,dt,SF,tEnd,gmID,indexNum)
+function results = responseHistory(obj,gmFile,dt,SF,tEnd,gmID,indexNum)
 %% RESPONSEHISTORY Perform response history analysis
 %
 %   results = RESPONSEHISTORY(obj,gmFile,dt,SF,tEnd,gmID,indexNum)
@@ -370,7 +370,7 @@ function results = responseHistory(obj,groundMotionFilename,dt,SF,tEnd,gmID,inde
         obj.applyGravityLoads(fid)
     end
 
-    fprintf(fid,'timeSeries Path 1 -dt %g -filePath {%s} -factor %g\n',dt,groundMotionFilename,SF);
+    fprintf(fid,'timeSeries Path 1 -dt %g -filePath {%s} -factor %g\n',dt,gmFile,SF);
     fprintf(fid,'pattern UniformExcitation 1 1 -accel 1\n');
 
     fprintf(fid,'recorder Node -file {%s} -time -timeSeries 1 -node 0 -dof 1 accel\n',filenames.output_timeSeries);
@@ -511,6 +511,67 @@ function energy = energyCriterion(obj,results)
     energy.norm_gravity = E_G_norm;
 end
 
+function results = incrementalDynamicAnalysis(obj,gm_mat)
+
+    SMT = FEMAP695_SMT(obj.fundamentalPeriod,obj.seismicDesignCategory);
+    SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
+
+    load(gm_mat)
+
+    gm = cell(obj.optionsIDA.nMotions,1);
+    gm(:) = {struct};
+    parfor gmIndex = 1:obj.optionsIDA.nMotions
+        gmID = ground_motions(gmIndex).ID;
+        gmFile = scratchFile(obj,sprintf('acc%s.acc',gmID));
+        dlmwrite(gmFile,ground_motions(gmIndex).normalized_acceleration*obj.g);
+        dt     = ground_motions(gmIndex).dt;
+        tEnd   = ground_motions(gmIndex).time(end) + obj.optionsIDA.tExtra;
+
+        solve_tic = tic;
+        fun = @(SF) IDApoint(obj,gmFile,dt,SF,tEnd,gmID,1) - 1;
+        fzero_options = optimset(optimset('fzero'),'TolX',obj.optionsIDA.ST_tol);
+        collapseSF = fzero(fun,3,fzero_options);
+        while fun(collapseSF) < 0
+            collapseSF = collapseSF + obj.optionsIDA.ST_tol;
+        end
+        solvetime = toc(solve_tic);
+        collapseST = collapseSF*SMT/SF1;
+        ST = [obj.optionsIDA.ST_step:obj.optionsIDA.ST_step:(collapseST-2*obj.optionsIDA.ST_step) (collapseST-obj.optionsIDA.ST_step):obj.optionsIDA.ST_step/10:collapseST];
+        SF = ST*SF1/SMT;
+
+        calc_tic = tic;
+        nHistories = length(SF);
+        rh = cell(nHistories,1);
+        for index = 1:nHistories
+            rh{index} = obj.responseHistory(gmFile,dt,SF(index),tEnd,gmID,index);
+            rh{index}.energy = obj.energyCriterion(rh{index});
+            rh{index}.maxDriftRatio = max(max(abs(rh{index}.storyDrift))./obj.storyHeight);
+        end
+        rh = [rh{:}];
+        calctime = toc(calc_tic);
+        temp = [rh.energy];
+        gm{gmIndex}.ID = gmID;
+        gm{gmIndex}.maxDriftRatio = [rh.maxDriftRatio];
+        gm{gmIndex}.collapseIndex = find(~isnan([temp.collapseIndex]),1);
+        gm{gmIndex}.ST = ST;
+        gm{gmIndex}.SCT = ST(gm{gmIndex}.collapseIndex);
+        gm{gmIndex}.rh = rh;
+        gm{gmIndex}.solvetime = solvetime;
+        gm{gmIndex}.calctime  = calctime;
+
+        if obj.deleteFilesAfterAnalysis
+            delete(gmFile)
+        end
+    end
+    gm = [gm{:}];
+    SCT_hat = median([gm.SCT]);
+
+    results = struct;
+    results.gm      = gm;
+    results.SMT     = SMT;
+    results.SCT_hat = SCT_hat;
+
+end
 
 %###############################################################################
 %% Design Stuff ################################################################
