@@ -579,6 +579,18 @@ function results = incrementalDynamicAnalysis(obj,gm_mat)
 
 end
 
+function energyRatio = IDApoint(obj,gmFile,dt,SF,tEnd,gmID,index)
+% IDAPOINT Perform a response history and return the maximum gravity to earthquake energy ratio.
+%
+%   This function is only used by INCREMENTALDYNAMICANALYSIS, but must be
+%       separate for parallelization reasons.
+%
+    results = responseHistory(obj,gmFile,dt,SF,tEnd,gmID,index);
+    energy = energyCriterion(obj,results);
+    energyRatio = max(energy.norm_gravity ./ (energy.earthquake + eps)); % add eps to earthquake to avoid 0/0
+
+end
+
 %###############################################################################
 %% Design Stuff ################################################################
 %###############################################################################
