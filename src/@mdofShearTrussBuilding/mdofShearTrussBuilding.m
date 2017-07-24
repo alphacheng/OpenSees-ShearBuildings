@@ -295,7 +295,7 @@ function [eigenvals,eigenvecs] = eigenvalues(obj)
     fprintf(fid,'set vecs {}\n');
     fprintf(fid,'set vecfid [open %s w+]\n',obj.path_for_tcl(filename_vecs));
     fprintf(fid,'for {set i 1} {$i <= %i} {incr i} {\n',obj.nStories);
-    fprintf(fid,'  lappend vecs [nodeEigenvector $i 1]\n');
+    fprintf(fid,'  lappend vecs [nodeEigenvector [expr $i*10] 1]\n');
     fprintf(fid,'  puts $vecfid [lindex $vecs [expr $i - 1] 0]\n');
     fprintf(fid,'}\n');
     fprintf(fid,'set eigfid [open %s w+]\n',obj.path_for_tcl(filename_vals));
@@ -522,7 +522,8 @@ function results = incrementalDynamicAnalysis(obj,gm_mat)
     SMT = FEMAP695_SMT(obj.fundamentalPeriod,obj.seismicDesignCategory);
     SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
 
-    load(gm_mat)
+    temp = load(gm_mat);
+    ground_motions = temp.ground_motions; % necessary for parfor transparency
 
     gm = cell(obj.optionsIDA.nMotions,1);
     gm(:) = {struct};
