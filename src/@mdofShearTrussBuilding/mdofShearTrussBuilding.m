@@ -177,13 +177,18 @@ end %properties
 
 methods
 
+%###############################################################################
 %% Constructor and set methods #################################################
+%###############################################################################
 
 function obj = mdofShearTrussBuilding(nStories)
     obj.nStories = nStories;
 end
 
+%###############################################################################
 %% Shared model functions ######################################################
+%###############################################################################
+
 function constructBuilding(obj,fid)
 %% CONSTRUCTBUILDING Create the OpenSees model based on current properties
 %
@@ -227,6 +232,8 @@ function constructBuilding(obj,fid)
 end %function:constructBuilding
 
 function applyGravityLoads(obj,fid)
+%% APPLYGRAVITYLOADS Write gravity load commands to file
+
     fprintf(fid,'pattern Plain 0 Linear {\n');
     for i = 1:obj.nStories
         fprintf(fid,'    load %i 0 -%g\n',i*10,obj.storyMass(i)*obj.g);
