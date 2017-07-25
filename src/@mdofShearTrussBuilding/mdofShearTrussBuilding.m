@@ -150,14 +150,16 @@ properties
     %   rating_TD           - Qualitative rating of the test data
     %   rating_MDL          - Qualitative rating of the archetype models
     %
-    optionsIDA = struct('tExtra',5,...
-                        'nMotions',7,...
-                        'ST',0.25:0.25:8,...
-                        'collapseDriftRatio',0.05,...
-                        'rating_DR','C',...
-                        'rating_TD','C',...
-                        'rating_MDL','C',...
-                        'shortCircuit',true...
+    optionsIDA = struct('tExtra',5, ...
+                        'nMotions',7, ...
+                        'ST',0.25:0.25:8, ...
+                        'collapseDriftRatio',0.05, ...
+                        'rating_DR','C', ...
+                        'rating_TD','C', ...
+                        'rating_MDL','C', ...
+                        'shortCircuit',true, ...
+                        'ST_tol',0.1, ...
+                        'ST_step',0.5 ...
     );
 
 % Equivalent Lateral Force options
@@ -528,46 +530,89 @@ function results = incrementalDynamicAnalysis(obj,gm_mat)
     gm = cell(obj.optionsIDA.nMotions,1);
     gm(:) = {struct};
     parfor gmIndex = 1:obj.optionsIDA.nMotions
+        totaltic = tic;
+        if obj.verbose %#ok obviously the class object needs to be broadcast? Yipes
+            w = getCurrentWorker();
+            fprintf('Calculating ground motion %i on %i\n',gmIndex,w.ProcessId)
+        end
         gmID = ground_motions(gmIndex).ID;
         gmFile = scratchFile(obj,sprintf('acc%s.acc',gmID));
         dlmwrite(gmFile,ground_motions(gmIndex).normalized_acceleration*obj.g);
         dt     = ground_motions(gmIndex).dt;
         tEnd   = ground_motions(gmIndex).time(end) + obj.optionsIDA.tExtra;
 
-        solve_tic = tic;
-        fun = @(SF) IDApoint(obj,gmFile,dt,SF,tEnd,gmID,1) - 1;
-        fzero_options = optimset(optimset('fzero'),'TolX',obj.optionsIDA.ST_tol);
-        collapseSF = fzero(fun,3,fzero_options);
-        while fun(collapseSF) < 0
-            collapseSF = collapseSF + obj.optionsIDA.ST_tol;
-        end
-        solvetime = toc(solve_tic);
-        collapseST = collapseSF*SMT/SF1;
-        ST = [obj.optionsIDA.ST_step:obj.optionsIDA.ST_step:(collapseST-2*obj.optionsIDA.ST_step) (collapseST-obj.optionsIDA.ST_step):obj.optionsIDA.ST_step/10:collapseST];
-        SF = ST*SF1/SMT;
+        % solve_tic = tic;
+        % fun = @(SF) IDApoint(obj,gmFile,dt,SF,tEnd,gmID,1) - 1;
+        % fzero_options = optimset(optimset('fzero'),'TolX',obj.optionsIDA.ST_tol);
+        % collapseSF = fzero(fun,3,fzero_options);
+        % while fun(collapseSF) < 0
+        %     collapseSF = collapseSF + obj.optionsIDA.ST_tol;
+        % end
+        % solvetime = toc(solve_tic);
+        % collapseST = collapseSF*SMT/SF1;
+        % ST = [obj.optionsIDA.ST_step:obj.optionsIDA.ST_step:(collapseST-2*obj.optionsIDA.ST_step) (collapseST-obj.optionsIDA.ST_step):obj.optionsIDA.ST_step/10:collapseST];
+        % SF = ST*SF1/SMT;
 
-        calc_tic = tic;
-        nHistories = length(SF);
-        rh = cell(nHistories,1);
-        for index = 1:nHistories
-            rh{index} = obj.responseHistory(gmFile,dt,SF(index),tEnd,gmID,index);
-            rh{index}.energy = obj.energyCriterion(rh{index});
-            rh{index}.maxDriftRatio = max(max(abs(rh{index}.storyDrift))./obj.storyHeight);
+        % calc_tic = tic;
+        % nHistories = length(SF);
+        % rh = cell(nHistories,1);
+        % for index = 1:nHistories
+        %     rh{index} = obj.responseHistory(gmFile,dt,SF(index),tEnd,gmID,index);
+        %     rh{index}.energy = obj.energyCriterion(rh{index});
+        %     rh{index}.maxDriftRatio = max(max(abs(rh{index}.storyDrift))./obj.storyHeight);
+        % end
+        % rh = [rh{:}];
+        % calctime = toc(calc_tic);
+
+        % fun = @(ST) IDApoint(obj,gmFile,dt,ST*SF1/SMT,tEnd,gmID) - 1;
+        ST = 0;
+        count = 0;
+        ER = 0;
+        ST_all = NaN(ceil(3/obj.optionsIDA.ST_step)*2,1);
+        rh = cell(size(ST_all));
+        while ER < 1
+            ST = ST + obj.optionsIDA.ST_step;
+            count = count + 1;
+            ST_all(count) = ST;
+            [ER,rh{count}] = IDApoint(obj,gmFile,dt,ST*SF1/SMT,tEnd,gmID,1);
         end
+        ST_collapse = ST;
+        ST_noCollapse = ST_all(end-1);
+        if isnan(ST_noCollapse)
+            ST_noCollapse = 0;
+        end
+        % Collapse! Now to bisect
+        while (ST_collapse - ST_noCollapse) > obj.optionsIDA.ST_tol
+            if ER > 1 %Collapse occurred, need to drop
+                ST_collapse = ST;
+            else %Collapse didn't occur, need to step up
+                ST_noCollapse = ST;
+            end
+            ST = ST_noCollapse + (ST_collapse - ST_noCollapse)/2;
+            count = count + 1;
+            ST_all(count) = ST;
+            [ER,rh{count}] = IDApoint(obj,gmFile,dt,ST*SF1/SMT,tEnd,gmID,1);
+        end
+        [ST_all,I] = sort(ST_all);
+        ST_all(isnan(ST_all)) = [];
+        rh = rh(I);
         rh = [rh{:}];
-        calctime = toc(calc_tic);
+
         temp = [rh.energy];
         gm{gmIndex}.ID = gmID;
         gm{gmIndex}.maxDriftRatio = [rh.maxDriftRatio];
         gm{gmIndex}.collapseIndex = find(~isnan([temp.collapseIndex]),1);
-        gm{gmIndex}.ST = ST;
-        gm{gmIndex}.SCT = ST(gm{gmIndex}.collapseIndex);
+        gm{gmIndex}.ST = ST_all';
+        gm{gmIndex}.SCT = ST_all(gm{gmIndex}.collapseIndex);
         gm{gmIndex}.rh = rh;
-        gm{gmIndex}.solvetime = solvetime;
-        gm{gmIndex}.calctime  = calctime;
+        % gm{gmIndex}.solvetime = solvetime;
+        % gm{gmIndex}.calctime  = calctime;
 
         if obj.deleteFilesAfterAnalysis
             delete(gmFile)
+        end
+        if obj.verbose
+            fprintf('Finished calculating ground motion %i on process %i in %g seconds\n',gmIndex,w.ProcessId,toc(totaltic))
         end
     end
     gm = [gm{:}];
@@ -580,15 +625,16 @@ function results = incrementalDynamicAnalysis(obj,gm_mat)
 
 end
 
-function energyRatio = IDApoint(obj,gmFile,dt,SF,tEnd,gmID,index)
+function [energyRatio,results] = IDApoint(obj,gmFile,dt,SF,tEnd,gmID,index)
 % IDAPOINT Perform a response history and return the maximum gravity to earthquake energy ratio.
 %
 %   This function is only used by INCREMENTALDYNAMICANALYSIS, but must be
 %       separate for parallelization reasons.
 %
     results = responseHistory(obj,gmFile,dt,SF,tEnd,gmID,index);
-    energy = energyCriterion(obj,results);
-    energyRatio = max(energy.norm_gravity ./ (energy.earthquake + eps)); % add eps to earthquake to avoid 0/0
+    results.energy = energyCriterion(obj,results);
+    results.maxDriftRatio = max(max(abs(results.storyDrift))./obj.storyHeight);
+    energyRatio = max(results.energy.norm_gravity ./ (results.energy.earthquake + eps)); % add eps to earthquake to avoid 0/0
 
 end
 
