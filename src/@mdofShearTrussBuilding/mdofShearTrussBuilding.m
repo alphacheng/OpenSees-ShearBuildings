@@ -719,9 +719,11 @@ end %function:springDesign
 %% Plot Functions ##############################################################
 %###############################################################################
 
-function animateResponseHistory(obj,results)
+function animateResponseHistory(obj,results,dt)
 
-    dt = max(diff(results.time));
+    if nargin == 2
+        dt = max(diff(results.time));
+    end
     cumHeights = cumsum(obj.storyHeight);
 
     figure

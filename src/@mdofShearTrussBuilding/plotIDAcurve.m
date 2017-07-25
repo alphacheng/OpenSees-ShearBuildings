@@ -20,14 +20,10 @@ case 'single'
     end
     h(1) = plot(xlim,[results.SCT_hat results.SCT_hat],'--','LineWidth',2);
     h(2) = plot(xlim,[results.SMT     results.SMT],    '--','LineWidth',2);
-    l = legend(h,'$\hat{S}_{CT}$','$S_{MT}$','Location','southeast');
-    l.Interpreter = 'latex';
+    legend(h,'$\hat{S}_{CT}$','$S_{MT}$','Location','southeast','Interpreter','latex')
     xlim([0 3*obj.optionsIDA.collapseDriftRatio*100])
-    ax = gca;
-    ax.XLabel.Interpreter = 'latex';
-    ax.YLabel.Interpreter = 'latex';
-    xlabel('Maximum Story Drift Ratio (\%)')
-    ylabel('Ground Motion Intensity $S_T$ (g)')
+    xlabel('Maximum Story Drift Ratio (\%)','Interpreter','latex')
+    ylabel('Ground Motion Intensity $S_T$ (g)','Interpreter','latex')
     grid on
 
 case 'multiple'
@@ -55,14 +51,10 @@ case 'multiple'
         lines(end)   = plot(xlim,[results.SMT     results.SMT],    'r--','LineWidth',2);
         legendentries{end-1} = '$\hat{S}_{CT}$';
         legendentries{end}   = '$S_{MT}$';
-        l = legend(lines,legendentries);
-        l.Interpreter = 'latex';
+        legend(lines,legendentries,'Interpreter','latex')
         xlim([0 3*obj.optionsIDA.collapseDriftRatio*100])
-        ax = gca;
-        ax.XLabel.Interpreter = 'latex';
-        ax.YLabel.Interpreter = 'latex';
-        xlabel('Maximum Story Drift Ratio (\%)')
-        ylabel('Ground Motion Intensity $S_T$ (g)')
+        xlabel('Maximum Story Drift Ratio (\%)','Interpreter','latex')
+        ylabel('Ground Motion Intensity $S_T$ (g)','Interpreter','latex')
         grid on;
     end
 
