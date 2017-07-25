@@ -20,7 +20,7 @@ case 'single'
     end
     h(1) = plot(xlim,[results.SCT_hat results.SCT_hat],'--','LineWidth',2);
     h(2) = plot(xlim,[results.SMT     results.SMT],    '--','LineWidth',2);
-    legend(h,'$\hat{S}_{CT}$','$S_{MT}$','Location','southeast','Interpreter','latex')
+    legend(h,{'$\hat{S}_{CT}$','$S_{MT}$'},'Location','southeast','Interpreter','latex')
     xlim([0 3*obj.optionsIDA.collapseDriftRatio*100])
     xlabel('Maximum Story Drift Ratio (\%)','Interpreter','latex')
     ylabel('Ground Motion Intensity $S_T$ (g)','Interpreter','latex')
