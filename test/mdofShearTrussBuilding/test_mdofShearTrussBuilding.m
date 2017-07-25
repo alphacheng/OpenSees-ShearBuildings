@@ -104,7 +104,7 @@ bldg.optionsResponseHistory.algorithm = { 'KrylovNewton','Newton','ModifiedNewto
 
 %-------------------------------------------------------------------------------
 % Incremental dynamic analysis options
-bldg.optionsIDA.nMotions = 12;                              % Number of ground motions to analyze
+bldg.optionsIDA.nMotions = 44;                              % Number of ground motions to analyze
 bldg.optionsIDA.tExtra = 5;                                 % Extra analysis time after end of ground motion
 bldg.optionsIDA.collapseDriftRatio = 0.05;                  % Story drift ratio that defines collapse
 bldg.optionsIDA.ST = [0.5:0.5:2.5 2.75:0.25:8];
@@ -112,70 +112,45 @@ bldg.optionsIDA.rating_DR  = 'C';
 bldg.optionsIDA.rating_TD  = 'C';
 bldg.optionsIDA.rating_MDL = 'C';
 bldg.optionsIDA.shortCircuit = true;
+bldg.optionsIDA.ST_tol = 0.01;
+bldg.optionsIDA.ST_step = 0.5;
 
 %##############################################################################%
 %% Run Test
 
 nHistories = length(bldg.optionsIDA.ST);
+gm_mat = '../ground_motions.mat';
 
 ELF = bldg.ELFanalysis();
 spring = bldg.springDesign(ELF,springGivens);
 bldg.storySpringDefinition = {spring.definition}';
 bldg.storyTrussDefinition = cell(nStories,1);
-a_t = 100.0;
-trussModulus = a_t*[spring.K0].*bldg.storyHeight;
+targetTrussDeformation = 0.002;  % Ratio of story height
+trussModulus = (cumsum(bldg.storyMass,'reverse')*bldg.g)/targetTrussDeformation;
 for i = 1:nStories
     bldg.storyTrussDefinition{i} = sprintf('uniaxialMaterial Elastic %i %g',i*10,trussModulus(i));
 end
 
-SF1 = FEMAP695_SF1(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
-SF2 = bldg.optionsIDA.ST/FEMAP695_SMT(bldg.fundamentalPeriod,bldg.seismicDesignCategory);
-SF  = SF1*SF2;
+% Standard setup - P-Delta only modelled explicitly
+F = bldg.pushoverForceDistribution();
+results1 = pushover(bldg,F,'TargetPostPeakRatio',0.75);
+results1 = processPushover(bldg,results1,ELF);
+fig = bldg.plotPushoverCurve(results1);
+bldg.plotPushoverDrifts(results1)
 
-load('../ground_motions.mat')
-gm(bldg.optionsIDA.nMotions) = struct;
-parfor gmIndex = 1:bldg.optionsIDA.nMotions
-    gmID = ground_motions(gmIndex).ID;
-    gmFile = scratchFile(bldg,sprintf('acc%s.acc',gmID));
-    dlmwrite(gmFile,ground_motions(gmIndex).normalized_acceleration*bldg.g);
-    dt     = ground_motions(gmIndex).dt;
-    tEnd   = ground_motions(gmIndex).time(end);
-
-    rh = cell(nHistories,1); % Operating on structs in isolate simplifies adding things to them
-    for index = 1:nHistories
-        rh{index} = bldg.responseHistory(gmFile,dt,SF(index),tEnd,gmID,index); %#ok<PFBNS>
-        rh{index}.energy = bldg.energyCriterion(rh{index});
-        rh{index}.maxDriftRatio = max(max(abs(rh{index}.storyDrift))./bldg.storyHeight);
-    end
-    rh = [rh{:}];
-    temp = [rh.energy];
-    gm(gmIndex).maxDriftRatio = [rh.maxDriftRatio];
-    gm(gmIndex).collapseIndex = find(~isnan([temp.failureIndex]),1);
-    gm(gmIndex).rh = rh;
-
-    if bldg.deleteFilesAfterAnalysis
-        delete(gmFile)
-    end
+IDA1 = bldg.incrementalDynamicAnalysis(gm_mat);
+for plotMode = {'single','multiple'}
+    plotIDAcurve(bldg,IDA1,plotMode{1})
 end
+CMR = IDA1.SCT_hat/IDA1.SMT;
+SSF = FEMAP695_SSF(bldg.fundamentalPeriod,results1.periodBasedDuctility,bldg.seismicDesignCategory);
+ACMR = SSF*CMR;
+beta_total = FEMAP695_beta_total(bldg.optionsIDA.rating_DR,bldg.optionsIDA.rating_TD,bldg.optionsIDA.rating_MDL,results1.periodBasedDuctility);
+ACMR20 = FEMAP695_ACMRxx(beta_total,0.2);
 
-figure
-hold on
-for gmIndex = 1:bldg.optionsIDA.nMotions
-    collapse = gm(gmIndex).collapseIndex;
-    plot([0 gm(gmIndex).maxDriftRatio(1:collapse)*100],[0 bldg.optionsIDA.ST(1:collapse)],'ko-')
-    plot(gm(gmIndex).maxDriftRatio(collapse)*100,bldg.optionsIDA.ST(collapse),'k.','MarkerSize',10)
-end
-xlim([0 3*bldg.optionsIDA.collapseDriftRatio*100])
-xlabel('Maximum Story Drift Ratio (%)')
-ylabel('Ground Motion Intensity S_T (g)')
-grid on
-
-% for i = [1 collapseIndex-1 collapseIndex nHistories]
-%     figure
-%     plot(gm(gmIndex).rh(i).time,[gm(gmIndex).rh(i).energy.earthquake gm(gmIndex).rh(i).energy.norm_gravity])
-%     yl = ylim;
-%     ylim([0 yl(2)])
-%     grid on
-%     xlabel(sprintf('Time (%s)',bldg.units.time))
-%     ylabel(sprintf('Energy (%s*%s)',bldg.units.length,bldg.units.force))
-% end
+% No P-Delta included
+bldg.includeExplicitPDelta = false;
+F = bldg.pushoverForceDistribution();
+results2 = pushover(bldg,F,'TargetPostPeakRatio',0.75);
+results2 = processPushover(bldg,results2,ELF);
+fig = bldg.plotPushoverCurve(results2,fig);
