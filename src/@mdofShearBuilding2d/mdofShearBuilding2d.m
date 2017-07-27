@@ -128,7 +128,7 @@ properties
     overstrengthFactor          % Overstrength factor (ASCE 7-10 Section 12.2)
 
 end
-properties (Access = protected)
+properties (Constant, Hidden)
     validAlgorithms  = {'Newton','KrylovNewton','ModifiedNewton'};
     validConstraints = {'Plain','Penalty','Transformation'};
     validTests       = {'NormDispIncr','EnergyIncr'};
