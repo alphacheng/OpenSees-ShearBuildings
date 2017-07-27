@@ -632,13 +632,13 @@ methods
 
         gm = load(gm_mat);
         ground_motions = gm.ground_motions;
-        SMT = FEMAP695_SMT(obj.fundamentalPeriod,obj.seismicDesignCategory);
+        SMT = FEMAP695.SMT(obj.fundamentalPeriod,obj.seismicDesignCategory);
         % ST  = SMT*SF2;
         ST = obj.optionsIDA.ST;
         if ~isempty(obj.SNRT)
-            SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory,obj.SNRT);
+            SF1 = FEMAP695.SF1(obj.fundamentalPeriod,obj.seismicDesignCategory,obj.SNRT);
         else
-            SF1 = FEMAP695_SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
+            SF1 = FEMAP695.SF1(obj.fundamentalPeriod,obj.seismicDesignCategory);
         end
         SF2 = ST/SMT;
 
@@ -700,10 +700,10 @@ methods
 
         SCT_hat = median(SCT);
         CMR = SCT_hat/SMT;
-        SSF = FEMAP695_SSF(obj.fundamentalPeriod,pushoverResults.periodBasedDuctility,obj.seismicDesignCategory);
+        SSF = FEMAP695.SSF(obj.fundamentalPeriod,pushoverResults.periodBasedDuctility,obj.seismicDesignCategory);
         ACMR = SSF*CMR;
-        beta_total = FEMAP695_beta_total(obj.optionsIDA.rating_DR,obj.optionsIDA.rating_TD,obj.optionsIDA.rating_MDL,pushoverResults.periodBasedDuctility);
-        ACMR20 = FEMAP695_ACMRxx(beta_total,0.2);
+        beta_total = FEMAP695.beta_total(obj.optionsIDA.rating_DR,obj.optionsIDA.rating_TD,obj.optionsIDA.rating_MDL,pushoverResults.periodBasedDuctility);
+        ACMR20 = FEMAP695.ACMRxx(beta_total,0.2);
 
         if ACMR < ACMR20
             R_accepted = false;
@@ -792,8 +792,8 @@ methods
 
         results = struct;
 
-        SDS = FEMAP695_mappedValue('SDS',obj.seismicDesignCategory);
-        SD1 = FEMAP695_mappedValue('SD1',obj.seismicDesignCategory);
+        SDS = FEMAP695.mappedValue('SDS',obj.seismicDesignCategory);
+        SD1 = FEMAP695.mappedValue('SD1',obj.seismicDesignCategory);
 
         approxFundamentalPeriod = 0.02*sum(obj.storyHeight)^0.75;
 

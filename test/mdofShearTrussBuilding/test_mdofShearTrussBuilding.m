@@ -143,10 +143,10 @@ for plotMode = {'single','multiple'}
     plotIDAcurve(bldg,IDA1,plotMode{1})
 end
 CMR = IDA1.SCT_hat/IDA1.SMT;
-SSF = FEMAP695_SSF(bldg.fundamentalPeriod,results1.periodBasedDuctility,bldg.seismicDesignCategory);
+SSF = FEMAP695.SSF(bldg.fundamentalPeriod,results1.periodBasedDuctility,bldg.seismicDesignCategory);
 ACMR = SSF*CMR;
-beta_total = FEMAP695_beta_total(bldg.optionsIDA.rating_DR,bldg.optionsIDA.rating_TD,bldg.optionsIDA.rating_MDL,results1.periodBasedDuctility);
-ACMR20 = FEMAP695_ACMRxx(beta_total,0.2);
+beta_total = FEMAP695.beta_total(bldg.optionsIDA.rating_DR,bldg.optionsIDA.rating_TD,bldg.optionsIDA.rating_MDL,results1.periodBasedDuctility);
+ACMR20 = FEMAP695.ACMRxx(beta_total,0.2);
 
 % No P-Delta included
 bldg.includeExplicitPDelta = false;

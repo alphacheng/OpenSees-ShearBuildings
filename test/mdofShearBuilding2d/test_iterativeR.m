@@ -62,7 +62,7 @@ while complete == false
     arch_pass = [IDA.R_accepted];
     clear IDA;
 
-    ACMR10 = FEMAP695_ACMRxx(beta_avg,0.1);
+    ACMR10 = FEMAP695.ACMRxx(beta_avg,0.1);
 
     if ACMRavg >= ACMR10
         suite_passes = true;
