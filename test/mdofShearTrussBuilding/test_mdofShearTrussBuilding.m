@@ -133,24 +133,12 @@ end
 
 % Standard setup - P-Delta only modelled explicitly
 F = bldg.pushoverForceDistribution();
-results1 = pushover(bldg,F,'TargetPostPeakRatio',0.75);
-results1 = processPushover(bldg,results1,ELF);
-fig = bldg.plotPushoverCurve(results1);
-bldg.plotPushoverDrifts(results1)
+push = bldg.pushover(F,'TargetPostPeakRatio',0.75);
+push = bldg.processPushover(push,ELF);
+bldg.plotPushoverCurve(push);
+bldg.plotPushoverDrifts(push)
 
-IDA1 = bldg.incrementalDynamicAnalysis(gm_mat);
+IDA = bldg.incrementalDynamicAnalysis(gm_mat,push.periodBasedDuctility);
 for plotMode = {'single','multiple'}
-    plotIDAcurve(bldg,IDA1,plotMode{1})
+    plotIDAcurve(bldg,IDA,plotMode{1})
 end
-CMR = IDA1.SCT_hat/IDA1.SMT;
-SSF = FEMAP695.SSF(bldg.fundamentalPeriod,results1.periodBasedDuctility,bldg.seismicDesignCategory);
-ACMR = SSF*CMR;
-beta_total = FEMAP695.beta_total(bldg.optionsIDA.rating_DR,bldg.optionsIDA.rating_TD,bldg.optionsIDA.rating_MDL,results1.periodBasedDuctility);
-ACMR20 = FEMAP695.ACMRxx(beta_total,0.2);
-
-% No P-Delta included
-bldg.includeExplicitPDelta = false;
-F = bldg.pushoverForceDistribution();
-results2 = pushover(bldg,F,'TargetPostPeakRatio',0.75);
-results2 = processPushover(bldg,results2,ELF);
-fig = bldg.plotPushoverCurve(results2,fig);

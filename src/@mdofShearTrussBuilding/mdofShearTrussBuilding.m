@@ -617,11 +617,20 @@ function results = incrementalDynamicAnalysis(obj,gm_mat)
     end
     gm = [gm{:}];
     SCT_hat = median([gm.SCT]);
+    CMR = SCT_hat/SMT;
+    SSF = FEMAP695.SSF(bldg.fundamentalPeriod,mu_T,bldg.seismicDesignCategory);
+    ACMR = SSF*CMR;
+    beta_total = FEMAP695.beta_total(bldg.optionsIDA.rating_DR,bldg.optionsIDA.rating_TD,bldg.optionsIDA.rating_MDL,mu_T);
+    ACMR20 = FEMAP695.ACMRxx(beta_total,0.2);
 
     results = struct;
-    results.gm      = gm;
+    results.ACMR    = ACMR;
+    results.ACMR20  = ACMR20;
     results.SMT     = SMT;
     results.SCT_hat = SCT_hat;
+    results.SSF     = SSF;
+    results.beta_t  = beta_total;
+    results.gm      = gm;
 
 end
 
