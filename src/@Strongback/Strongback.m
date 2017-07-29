@@ -199,7 +199,7 @@ function constructBuilding(obj,fid)
 %    CONSTRUCTBUILDING(obj,fid) writes the OpenSees code that represents
 %       the model to the file specified by fid.
 %
-    cumHeights = cumsum(bldg.storyHeight);
+    cumHeights = cumsum(obj.storyHeight);
 
     fprintf(fid,'# Units: %s, %s, %s\n\n',obj.units.force,obj.units.length,obj.units.time);
     fprintf(fid,'#################################### Model #####################################\n');
@@ -301,7 +301,7 @@ function applyGravityLoads(obj,fid)
     fprintf(fid,'analysis Static\n\n');
     fprintf(fid,'analyze 10\n');
     fprintf(fid,'loadConst -time 0.0\n');
-    fprintf(fid,'wipeAnalysis\n');
+    fprintf(fid,'wipeAnalysis\n\n');
 end %function:applyGravityLoads
 
 
@@ -333,6 +333,7 @@ function [eigenvals,eigenvecs] = eigenvalues(obj)
         obj.applyGravityLoads(fid)
     end
 
+    fprintf(fid,'############################## Eigenvalue Analysis #############################\n');
     fprintf(fid,'set eigs [eigen -fullGenLapack %i]\n',obj.nStories);
     fprintf(fid,'set eigenvalues $eigs\n');
     fprintf(fid,'set vecs {}\n');
