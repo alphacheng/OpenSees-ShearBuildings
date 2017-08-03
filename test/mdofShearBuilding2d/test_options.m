@@ -81,7 +81,7 @@ options.pushover.test.iterations = 10;
 options.pushover.test.print      = 0;
 options.pushover.test.normType   = 2;
 
-options.pushover.algorithm = { 'KrylovNewton','Newton','ModifiedNewton' };
+options.pushover.algorithm.type = { 'KrylovNewton','Newton','ModifiedNewton' };
 
 %-------------------------------------------------------------------------------
 % Response history options
@@ -100,7 +100,7 @@ options.responseHistory.test.iterations = 10;
 options.responseHistory.test.print      = 0;
 options.responseHistory.test.normType   = 2;
 
-options.responseHistory.algorithm = { 'KrylovNewton','Newton','ModifiedNewton' };
+options.responseHistory.algorithm.type = { 'KrylovNewton','Newton','ModifiedNewton' };
 
 %-------------------------------------------------------------------------------
 % Incremental dynamic analysis options

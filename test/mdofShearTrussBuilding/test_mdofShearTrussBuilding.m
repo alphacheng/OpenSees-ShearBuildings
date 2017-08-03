@@ -81,7 +81,7 @@ bldg.optionsPushover.test.iterations = 10;
 bldg.optionsPushover.test.print      = 0;
 bldg.optionsPushover.test.normType   = 2;
 
-bldg.optionsPushover.algorithm = { 'KrylovNewton','Newton','ModifiedNewton' };
+bldg.optionsPushover.algorithm.type = { 'KrylovNewton','Newton','ModifiedNewton' };
 
 %-------------------------------------------------------------------------------
 % Response history options
@@ -100,7 +100,7 @@ bldg.optionsResponseHistory.test.iterations = 10;
 bldg.optionsResponseHistory.test.print      = 0;
 bldg.optionsResponseHistory.test.normType   = 2;
 
-bldg.optionsResponseHistory.algorithm = { 'KrylovNewton','Newton','ModifiedNewton' };
+bldg.optionsResponseHistory.algorithm.type = { 'KrylovNewton','Newton','ModifiedNewton' };
 
 %-------------------------------------------------------------------------------
 % Incremental dynamic analysis options
@@ -124,6 +124,7 @@ gm_mat = '../ground_motions.mat';
 ELF = bldg.ELFanalysis();
 spring = bldg.springDesign(ELF,springGivens);
 bldg.storySpringDefinition = {spring.definition}';
+
 bldg.storyTrussDefinition = cell(nStories,1);
 targetTrussDeformation = 0.002;  % Ratio of story height
 trussModulus = (cumsum(bldg.storyMass,'reverse')*bldg.g)/targetTrussDeformation;

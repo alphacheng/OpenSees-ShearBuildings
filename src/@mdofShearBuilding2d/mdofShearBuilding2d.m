@@ -42,17 +42,9 @@ properties
     %
     %   algorithm - cell vector containing the names of algorithms to be used; select from 'Newton', 'KrylovNewton', and 'ModifiedNewton'
     %
-    optionsPushover = struct('constraints' , struct('type'       , 'Plain', ...
-                                                    'penalty'    , struct('alphaS',1.0e12, ...
-                                                                          'alphaM',1.0e12) ...
-                            ), ...
-                             'test'        , struct('type'       , 'NormDispIncr', ...
-                                                    'tolerance'  , [1e-5,1e-4,1e-3], ...
-                                                    'iterations' , 10, ...
-                                                    'print'      , 1, ...
-                                                    'normType'   , 2 ...
-                            ), ...
-                             'algorithm'   , {{ 'Newton','KrylovNewton','ModifiedNewton' }} ...
+    optionsPushover = struct('constraints' , OpenSees.ConstraintsOptions('type','Plain'), ...
+                             'test'        , OpenSees.TestOptions(), ...
+                             'algorithm'   , OpenSees.AlgorithmOptions() ...
     );
 
 % Response history options
@@ -80,17 +72,9 @@ properties
     %
     %   algorithm - cell vector containing the names of algorithms to be used; select from 'Newton', 'KrylovNewton', and 'ModifiedNewton'
     %
-    optionsResponseHistory = struct('constraints' , struct('type'       , 'Transformation', ...
-                                                           'penalty'    , struct('alphaS',1.0e12, ...
-                                                                                 'alphaM',1.0e12) ...
-                                    ), ...
-                                    'test'        , struct('type'       , 'NormDispIncr', ...
-                                                           'tolerance'  , [1e-5,5e-5,1e-4], ...
-                                                           'iterations' , 10, ...
-                                                           'print'      , 1, ...
-                                                           'normType'   , 2 ...
-                                    ), ...
-                                    'algorithm'   , {{ 'Newton','KrylovNewton','ModifiedNewton' }} ...
+    optionsResponseHistory = struct('constraints' , OpenSees.ConstraintsOptions(), ...
+                                    'test'        , OpenSees.TestOptions('tolerance',[1e-5,5e-5,1e-4]), ...
+                                    'algorithm'   , OpenSees.AlgorithmOptions() ...
     );
 
 % Incremental dynamic analysis options
@@ -128,11 +112,6 @@ properties
     overstrengthFactor          % Overstrength factor (ASCE 7-10 Section 12.2)
 
 end
-properties (Constant, Hidden)
-    validAlgorithms  = {'Newton','KrylovNewton','ModifiedNewton'};
-    validConstraints = {'Plain','Penalty','Transformation'};
-    validTests       = {'NormDispIncr','EnergyIncr'};
-end
 
 methods
     %% Constructor
@@ -163,40 +142,6 @@ methods
             obj.storySpringDefinition = storySpringDefinition;
         else
             error('storySpringDefinition should be cell vector of length %i (number of stories)',obj.nStories); %#ok - nStories is set by the constructor
-        end
-    end
-    function set.optionsPushover(obj,optionsPushover)
-        % if isfield(optionsPushover,'constraints')
-            optionsPushover.constraints = obj.checkConstraints(optionsPushover.constraints);
-        % end
-        if isfield(optionsPushover,'test')
-            optionsPushover.test = obj.checkTest(optionsPushover.test);
-        end
-        if isfield(optionsPushover,'algorithm')
-            optionsPushover.algorithm = obj.checkAlgorithm(optionsPushover.algorithm);
-        end
-        obj.optionsPushover = optionsPushover;
-    end
-    function constraints = checkConstraints(obj,constraints)
-        if isfield(constraints,'type')
-        assert(ischar(constraints.type),'Constraints type must be a character vector');
-        check = strcmpi(constraints.type,obj.validConstraints);
-        assert(any(check),'Unknown constraints type: %s',constraints.type);
-        constraints.type = obj.validConstraints{check};  % Ensure capitalization is correct
-        end
-    end
-    function test = checkTest(obj,test)
-        assert(ischar(test.type),'Test method must be a character vector');
-        check = strcmpi(test.type,obj.validTests);
-        assert(any(check),'Unknown test method: %s',test.type);
-        test.type = obj.validTests{check};  % Ensure capitalization is correct
-    end
-    function algorithm = checkAlgorithm(obj,algorithm)
-        assert(iscell(algorithm),'Algorithm list must be a cell vector')
-        for i = 1:length(algorithm)
-            check = strcmpi(algorithm{i},obj.validAlgorithms);
-            assert(any(check),'Unknown test method: %s',algorithm{i});
-            algorithm{i} = obj.validAlgorithms{check};  % Ensure capitalization is correct
         end
     end
 
@@ -387,14 +332,14 @@ methods
                 fprintf(fid,'set currentLoad [getTime]\n');
                 fprintf(fid,'set maxLoad $currentLoad\n');
                 fprintf(fid,'while { $currentLoad >= [expr %g*$maxLoad] } {\n',targetPostPeakRatio);
-                fprintf(fid,'    algorithm %s\n',obj.optionsPushover.algorithm{1});
+                fprintf(fid,'    algorithm %s\n',obj.optionsPushover.algorithm.type{1});
                 fprintf(fid,'    test %s\n',testArgs{1});
                 fprintf(fid,'    set ok [analyze 1]\n');
                 for i = 1:length(testArgs)
                     if i == 1; k = 2; else; k = 1; end
-                    for j = k:length(obj.optionsPushover.algorithm)
+                    for j = k:length(obj.optionsPushover.algorithm.type)
                         fprintf(fid,'    if { $ok != 0 } {\n');
-                        fprintf(fid,'        algorithm %s\n',obj.optionsPushover.algorithm{j});
+                        fprintf(fid,'        algorithm %s\n',obj.optionsPushover.algorithm.type{j});
                         fprintf(fid,'        test %s\n',testArgs{i});
                         fprintf(fid,'        set ok [analyze 1]\n');
                         fprintf(fid,'    }\n');
@@ -560,14 +505,14 @@ methods
 
         fprintf(fid,'set currentTime [getTime]\n');
         fprintf(fid,'while { $currentTime < %g } {\n',tend);
-        fprintf(fid,'    algorithm %s\n',obj.optionsResponseHistory.algorithm{1});
+        fprintf(fid,'    algorithm %s\n',obj.optionsResponseHistory.algorithm.type{1});
         fprintf(fid,'    test %s\n',testArgs{1});
         fprintf(fid,'    set ok [analyze 1 %g]\n',dt);
         for i = 1:length(testArgs)
             if i == 1; k = 2; else; k = 1; end
-            for j = k:length(obj.optionsResponseHistory.algorithm)
+            for j = k:length(obj.optionsResponseHistory.algorithm.type)
                 fprintf(fid,'    if { $ok != 0 } {\n');
-                fprintf(fid,'        algorithm %s\n',obj.optionsResponseHistory.algorithm{j});
+                fprintf(fid,'        algorithm %s\n',obj.optionsResponseHistory.algorithm.type{j});
                 fprintf(fid,'        test %s\n',testArgs{i});
                 fprintf(fid,'        set ok [analyze 1 %g]\n',dt);
                 fprintf(fid,'    }\n');

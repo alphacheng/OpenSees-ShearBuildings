@@ -113,14 +113,14 @@ switch lower(type)
         fprintf(fid,'set currentLoad [getTime]\n');
         fprintf(fid,'set maxLoad $currentLoad\n');
         fprintf(fid,'while { $currentLoad >= [expr %g*$maxLoad] } {\n',targetPostPeakRatio);
-        fprintf(fid,'    algorithm %s\n',obj.optionsPushover.algorithm{1});
+        fprintf(fid,'    algorithm %s\n',obj.optionsPushover.algorithm.type{1});
         fprintf(fid,'    test %s\n',testArgs{1});
         fprintf(fid,'    set ok [analyze 1]\n');
         for i = 1:length(testArgs)
             if i == 1; k = 2; else; k = 1; end
-            for j = k:length(obj.optionsPushover.algorithm)
+            for j = k:length(obj.optionsPushover.algorithm.type)
                 fprintf(fid,'    if { $ok != 0 } {\n');
-                fprintf(fid,'        algorithm %s\n',obj.optionsPushover.algorithm{j});
+                fprintf(fid,'        algorithm %s\n',obj.optionsPushover.algorithm.type{j});
                 fprintf(fid,'        test %s\n',testArgs{i});
                 fprintf(fid,'        set ok [analyze 1]\n');
                 fprintf(fid,'    }\n');
