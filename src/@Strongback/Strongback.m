@@ -361,7 +361,6 @@ function [eigenvals,eigenvecs] = eigenvalues(obj)
 
 end %function:eigenvalues
 
-end
+end %methods
 
-
-end
+end %classdef
