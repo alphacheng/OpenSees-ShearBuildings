@@ -226,7 +226,7 @@ function applyGravityLoads(obj,fid)
                                         obj.optionsGravityLoads.test.iterations,...
                                         obj.optionsGravityLoads.test.print,...
                                         obj.optionsGravityLoads.test.normType);
-    fprintf(fid,'algorithm %s\n',obj.optionsGravityLoads.algorithm.type);
+    fprintf(fid,'algorithm %s\n',obj.optionsGravityLoads.algorithm.type{1});
     fprintf(fid,'integrator LoadControl 0.1\n');
     fprintf(fid,'analysis Static\n');
     fprintf(fid,'analyze 10\n');
