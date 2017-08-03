@@ -170,17 +170,16 @@ temp = dlmread(filenames.output_force_story);
 results.storyShear = -temp(:,1:4:end);
 
 temp = dlmread(filenames.output_force_truss);
-results.trussForce = zeros(size(temp,1),size(temp,2)/2);
-results.trussForce(:,1:2:end) = temp(:,1:4:end);
-results.trussForce(:,2:2:end) = temp(:,2:4:end);
+results.trussForce_x = temp(:,1:4:end);
+results.trussForce_y = temp(:,2:4:end);
 
 % Computed Results
 storyDrift = results.displacement_x;
 storyDrift(:,2:end) = storyDrift(:,2:end)-storyDrift(:,1:(end-1));
 results.storyDrift = storyDrift;
 results.roofDrift = results.displacement_x(:,end);
-results.baseShear = results.storyShear(:,1);
 results.appliedStoryForce = time*F;
+results.baseShear = sum(results.appliedStoryForce,2);
 
 % Clean Folder
 if obj.deleteFilesAfterAnalysis
