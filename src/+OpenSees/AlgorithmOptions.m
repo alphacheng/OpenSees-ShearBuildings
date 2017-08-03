@@ -12,7 +12,7 @@ methods
 function obj = AlgorithmOptions(varargin)
     if nargin == 1 && iscell(varargin{1})
         obj.type = varargin{1};
-    else
+    elseif nargin ~= 0
         obj.type = varargin(:);
     end
 end
