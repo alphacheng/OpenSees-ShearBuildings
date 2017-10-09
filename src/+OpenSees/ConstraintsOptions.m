@@ -1,9 +1,9 @@
 classdef ConstraintsOptions < handle
 
 properties
-    type = 'Transformation';
-    alphaS
-    alphaM
+    type = 'Transformation';    % constraints type
+    alphaS                      % penalty value/Lagrange multiplier on single-point constraints
+    alphaM                      % penalty value/Lagrange multiplier on multi-point constraints
 end
 properties (Hidden, Constant)
     validConstraints = {'Plain','Penalty','Transformation'};
@@ -45,6 +45,16 @@ end
 function set.alphaM(obj,alpha)
     assert(isnumeric(alpha) && isscalar(alpha),'alphaM must be a scalar number')
     obj.alphaM = alpha;
+end
+
+%--------------------------------- Print arguments ----------------------------%
+function str = writeArgs(obj)
+    switch obj.type
+    case {'Penalty', 'Lagrange'}
+        str = sprintf('%s %g %g', obj.type, obj.alphaS, obj.alphaM);
+    case {'Plain', 'Transformation'}
+        str = sprintf('%s', obj.type);
+    end
 end
 
 end

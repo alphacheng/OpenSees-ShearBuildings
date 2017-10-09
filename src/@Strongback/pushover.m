@@ -37,24 +37,22 @@ results.F = F;
 switch lower(type)
     case 'targetdrift'
         targetDrift      = varargin{1};
-
         results.targetDrift = targetDrift;
     case 'targetpostpeakratio'
         targetPostPeakRatio = varargin{1};
-
         results.targetPostPeakRatio = targetPostPeakRatio;
     otherwise
         error('Unknown analysis type: %s',type);
 end
 
 % Filenames
-filenames.input              = obj.scratchFile('Strongback_pushover_input.tcl');
-filenames.output_timeSeries  = obj.scratchFile('Strongback_pushover_timeSeries.out');
-filenames.output_def_x       = obj.scratchFile('Strongback_pushover_disp_x.out');
-filenames.output_def_y       = obj.scratchFile('Strongback_pushover_disp_y.out');
-filenames.output_force_story = obj.scratchFile('Strongback_pushover_force_s.out');
-filenames.output_force_truss = obj.scratchFile('Strongback_pushover_force_t.out');
-filenames.output_force_sback = obj.scratchFile('Strongback_pushover_force_b.out');
+filenames.input              = obj.scratchFile(sprintf('%s_pushover_input.tcl'      ,class(obj)));
+filenames.output_timeSeries  = obj.scratchFile(sprintf('%s_pushover_timeSeries.out' ,class(obj)));
+filenames.output_def_x       = obj.scratchFile(sprintf('%s_pushover_disp_x.out'     ,class(obj)));
+filenames.output_def_y       = obj.scratchFile(sprintf('%s_pushover_disp_y.out'     ,class(obj)));
+filenames.output_force_story = obj.scratchFile(sprintf('%s_pushover_force_s.out'    ,class(obj)));
+filenames.output_force_truss = obj.scratchFile(sprintf('%s_pushover_force_t.out'    ,class(obj)));
+filenames.output_force_sback = obj.scratchFile(sprintf('%s_pushover_force_b.out'    ,class(obj)));
 
 % Create .tcl file
 fid = fopen(filenames.input,'w');
@@ -64,6 +62,7 @@ if obj.includeExplicitPDelta
     obj.applyGravityLoads(fid)
 end
 
+fprintf(fid,'################################### Pushover ###################################\n');
 fprintf(fid,'timeSeries Linear 1\n');
 fprintf(fid,'pattern Plain 1 1 {\n');
 for i = 1:obj.nStories
@@ -71,16 +70,18 @@ for i = 1:obj.nStories
         fprintf(fid,'    load %i %g 0 0\n',i+10,F(i));
     end
 end
-fprintf(fid,'} \n');
+fprintf(fid,'}\n\n');
 
+fprintf(fid,'#---------------------------------- Recorders ---------------------------------#\n');
 fprintf(fid,'recorder Node -file {%s} -time -timeSeries 1 -node 10 -dof 1 accel\n',filenames.output_timeSeries);
 fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 1 disp \n',filenames.output_def_x,obj.nStories+10);
 fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 2 disp \n',filenames.output_def_y,obj.nStories+10);
 fprintf(fid,'recorder Element -file {%s} -eleRange 1 %i -dof 1 force \n',filenames.output_force_story,obj.nStories);
 fprintf(fid,'recorder Element -file {%s} -eleRange 11 %i -dof 1 2 force \n',filenames.output_force_truss,obj.nStories+10);
-fprintf(fid,'recorder Element -file {%s} -eleRange 21 %i -dof 1 2 force \n',filenames.output_force_sback,obj.nStories+20);
-fprintf(fid,'record \n');
+fprintf(fid,'recorder Element -file {%s} -eleRange 21 %i localForce \n',filenames.output_force_sback,obj.nStories+20);
+fprintf(fid,'record\n\n');
 
+fprintf(fid,'#---------------------------------- Analysis ----------------------------------#\n');
 fprintf(fid,'system UmfPack \n');
 % constraints
 switch obj.optionsPushover.constraints.type
@@ -162,7 +163,7 @@ switch status
         error('Analysis Failed in Unknown Manner (exit code: %i)',status);
 end
 
-% Read Results
+%-------------------------------- Read Results --------------------------------%
 temp = dlmread(filenames.output_timeSeries);
 time = temp(:,1);
 results.displacement_x = dlmread(filenames.output_def_x);
@@ -176,10 +177,14 @@ results.trussForce_x = temp(:,1:2:end);
 results.trussForce_y = temp(:,2:2:end);
 
 temp = dlmread(filenames.output_force_sback);
-results.strongbackForce_x = temp(:,1:2:end);
-results.strongbackForce_y = temp(:,2:2:end);
+results.strongbackAxial           = temp(:,1:6:end);
+results.strongbackAxial(:,end+1)  = temp(:,end-2);
+results.strongbackShear           = temp(:,2:6:end);
+results.strongbackShear(:,end+1)  = temp(:,end-1);
+results.strongbackMoment          = temp(:,3:6:end);
+results.strongbackMoment(:,end+1) = temp(:,end);
 
-% Computed Results
+%------------------------------ Computed Results ------------------------------%
 storyDrift = results.displacement_x;
 storyDrift(:,2:end) = storyDrift(:,2:end)-storyDrift(:,1:(end-1));
 results.storyDrift = storyDrift;

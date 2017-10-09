@@ -501,41 +501,12 @@ function results = incrementalDynamicAnalysis(obj,gm_mat)
     gm = cell(obj.optionsIDA.nMotions,1);
     gm(:) = {struct};
     parfor gmIndex = 1:obj.optionsIDA.nMotions
-        totaltic = tic;
-        if obj.verbose %#ok obviously the class object needs to be broadcast? Yipes
-            w = getCurrentWorker();
-            fprintf('Calculating ground motion %i on %i\n',gmIndex,w.ProcessId)
-        end
         gmID = ground_motions(gmIndex).ID;
         gmFile = scratchFile(obj,sprintf('acc%s.acc',gmID));
         dlmwrite(gmFile,ground_motions(gmIndex).normalized_acceleration*obj.g);
         dt     = ground_motions(gmIndex).dt;
         tEnd   = ground_motions(gmIndex).time(end) + obj.optionsIDA.tExtra;
 
-        % solve_tic = tic;
-        % fun = @(SF) IDApoint(obj,gmFile,dt,SF,tEnd,gmID,1) - 1;
-        % fzero_options = optimset(optimset('fzero'),'TolX',obj.optionsIDA.ST_tol);
-        % collapseSF = fzero(fun,3,fzero_options);
-        % while fun(collapseSF) < 0
-        %     collapseSF = collapseSF + obj.optionsIDA.ST_tol;
-        % end
-        % solvetime = toc(solve_tic);
-        % collapseST = collapseSF*SMT/SF1;
-        % ST = [obj.optionsIDA.ST_step:obj.optionsIDA.ST_step:(collapseST-2*obj.optionsIDA.ST_step) (collapseST-obj.optionsIDA.ST_step):obj.optionsIDA.ST_step/10:collapseST];
-        % SF = ST*SF1/SMT;
-
-        % calc_tic = tic;
-        % nHistories = length(SF);
-        % rh = cell(nHistories,1);
-        % for index = 1:nHistories
-        %     rh{index} = obj.responseHistory(gmFile,dt,SF(index),tEnd,gmID,index);
-        %     rh{index}.energy = obj.energyCriterion(rh{index});
-        %     rh{index}.maxDriftRatio = max(max(abs(rh{index}.storyDrift))./obj.storyHeight);
-        % end
-        % rh = [rh{:}];
-        % calctime = toc(calc_tic);
-
-        % fun = @(ST) IDApoint(obj,gmFile,dt,ST*SF1/SMT,tEnd,gmID) - 1;
         ST = 0;
         count = 0;
         ER = 0;
@@ -581,9 +552,6 @@ function results = incrementalDynamicAnalysis(obj,gm_mat)
 
         if obj.deleteFilesAfterAnalysis
             delete(gmFile)
-        end
-        if obj.verbose
-            fprintf('Finished calculating ground motion %i on process %i in %g seconds\n',gmIndex,w.ProcessId,toc(totaltic))
         end
     end
     gm = [gm{:}];

@@ -20,7 +20,7 @@ properties
     %   1: Print information on norms each time test is invoked.
     %   2: Print information on norms and number of iterations at end of
     %      successful test.
-    %   4: Print the norms, ΔU, and R(U) vectors at each step.
+    %   4: Print the norms and the ΔU and R(U) vectors at each step.
     %   5: Return a successful test even if convergence is not achieved within
     %      the maximum number of iterations.
     print = 0;
@@ -80,6 +80,12 @@ function set.normType(obj,norm_in)
     assert(isFloatInt(norm_in) && (norm_in >= 0) && isscalar(norm_in),'Norm type must be a scalar integer >= 0')
     obj.normType = norm_in;
 end
+
+%------------------------------- Write Tcl code -------------------------------%
+function str = genTclCode(obj, i)
+    str = sprintf('test %s %g %i %i %i', obj.type, obj.tolerance(i), obj.iterations, obj.print, obj.normType);
+end
+
 
 end %methods
 

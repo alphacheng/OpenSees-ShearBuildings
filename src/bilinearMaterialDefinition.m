@@ -38,12 +38,22 @@ c_A = S.c_K;                % rate of accelerated reloading deterioration. The d
 c_K = S.c_K;                % rate of unloading stiffness deterioration. The default value is 1.0.
 theta_p_Plus = S.defl_p;    % pre-capping rotation for positive loading direction (often noted as plastic rotation capacity)
 theta_p_Neg = S.defl_p;     % pre-capping rotation for negative loading direction (often noted as plastic rotation capacity) (positive value)
-theta_pc_Plus = S.defl_pc;  % post-capping rotation for positive loading direction
-theta_pc_Neg = S.defl_pc;   % post-capping rotation for negative loading direction (positive value)
+if S.defl_pc == Inf
+    theta_pc_Plus = 9e99;
+    theta_pc_Neg  = 9e99;
+else
+    theta_pc_Plus = S.defl_pc;  % post-capping rotation for positive loading direction
+    theta_pc_Neg = S.defl_pc;   % post-capping rotation for negative loading direction (positive value)
+end
 Res_Pos = S.Res;            % residual strength ratio for positive loading direction
 Res_Neg = S.Res;            % residual strength ratio for negative loading direction (positive value)
-theta_u_Plus = S.defl_u;    % ultimate rotation capacity for positive loading direction
-theta_u_Neg = S.defl_u;     % ultimate rotation capacity for negative loading direction (positive value)
+if S.defl_u == Inf
+    theta_u_Plus = 9e99;
+    theta_u_Neg  = 9e99;
+else
+    theta_u_Plus = S.defl_u;  % ultimate rotation for positive loading direction
+    theta_u_Neg = S.defl_u;   % ultimate rotation for negative loading direction (positive value)
+end
 D_Plus = S.D;               % rate of cyclic deterioration in the positive loading direction (this parameter is used to create asymmetric hysteretic behavior for the case of a composite beam). For symmetric hysteretic response use 1.0.
 D_Neg = S.D;                % rate of cyclic deterioration in the negative loading direction (this parameter is used to create asymmetric hysteretic behavior for the case of a composite beam). For symmetric hysteretic response use 1.0.
 nFactor = S.nFactor;        % elastic stiffness amplification factor, mainly for use with concentrated plastic hinge elements (optional, default = 0).

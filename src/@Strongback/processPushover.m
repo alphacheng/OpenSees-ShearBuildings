@@ -5,27 +5,47 @@ if ~strcmp(results.exitStatus,'Analysis Successful')
     warning('Analysis not successful; results may not be valid for post-processing')
 end
 
-results.peakShear = max(results.baseShear);
-peakIndex = results.baseShear == results.peakShear;
-results.peakTotalDrift = results.displacement_x(peakIndex,:);
+baseShear = results.baseShear;
+roofDrift = results.roofDrift;
+
+peakShear = max(baseShear);
+peakIndex = find(baseShear == peakShear, 1);
+peakTotalDrift = results.displacement_x(peakIndex,:);
 peakStoryDrift = results.storyDrift(peakIndex,:);
 
-postPeakIndex = results.roofDrift > results.roofDrift(peakIndex);
-postPeakShear = results.baseShear(postPeakIndex);
+postPeakIndex      = roofDrift > roofDrift(peakIndex);
+[postPeakShear, IA] = unique(baseShear(postPeakIndex), 'stable');
 postPeakTotalDrift = results.displacement_x(postPeakIndex,:);
+postPeakTotalDrift = postPeakTotalDrift(IA,:);
 postPeakStoryDrift = results.storyDrift(postPeakIndex,:);
+postPeakStoryDrift = postPeakStoryDrift(IA,:);
 
-results.peak80Shear = 0.8*results.peakShear;
-results.peak80TotalDrift = interp1(postPeakShear,postPeakTotalDrift,results.peak80Shear);
-peak80StoryDrift = interp1(postPeakShear,postPeakStoryDrift,results.peak80Shear);
+peak80Shear      = 0.8*peakShear;
+peak80TotalDrift = interp1(postPeakShear,postPeakTotalDrift,peak80Shear);
+peak80StoryDrift = interp1(postPeakShear,postPeakStoryDrift,peak80Shear);
 
-results.peakStoryDriftRatio   = peakStoryDrift./obj.storyHeight;
-results.peak80StoryDriftRatio = peak80StoryDrift./obj.storyHeight;
+peakStoryDriftRatio   = peakStoryDrift./obj.storyHeight;
+peak80StoryDriftRatio = peak80StoryDrift./obj.storyHeight;
 
-results.calcOverstr = results.peakShear/ELF.baseShear;
-prePeakIndex = results.roofDrift < results.peakTotalDrift(obj.nStories);
-designBaseShearDrift = interp1(results.baseShear(prePeakIndex),results.roofDrift(prePeakIndex),ELF.baseShear);
-results.effectiveYieldDrift = results.calcOverstr*designBaseShearDrift;
-results.periodBasedDuctility = results.peak80TotalDrift(obj.nStories)/results.effectiveYieldDrift;
+prePeakIndex         = roofDrift < peakTotalDrift(obj.nStories);
+[prePeakShear, IA]   = unique(baseShear(prePeakIndex), 'stable');
+prePeakDrift         = roofDrift(prePeakIndex);
+prePeakDrift         = prePeakDrift(IA);
+
+calcOverstr          = peakShear/ELF.baseShear;
+designBaseShearDrift = interp1(prePeakShear,prePeakDrift,ELF.baseShear);
+effectiveYieldDrift  = calcOverstr*designBaseShearDrift;
+periodBasedDuctility = peak80TotalDrift(obj.nStories)/effectiveYieldDrift;
+
+% Return results
+results.peakShear               = peakShear;
+results.peakTotalDrift          = peakTotalDrift;
+results.peakStoryDriftRatio     = peakStoryDriftRatio;
+results.peak80Shear             = peak80Shear;
+results.peak80TotalDrift        = peak80TotalDrift;
+results.peak80StoryDriftRatio   = peak80StoryDriftRatio;
+results.calcOverstr             = calcOverstr;
+results.effectiveYieldDrift     = effectiveYieldDrift;
+results.periodBasedDuctility    = periodBasedDuctility;
 
 end

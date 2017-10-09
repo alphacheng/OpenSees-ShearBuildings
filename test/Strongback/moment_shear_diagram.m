@@ -1,6 +1,6 @@
-%############################# test_Strongback.m ##############################%
+%########################### moment_shear_diagram.m ###########################%
 %                                                                              %
-% Script for testing the functioning of the Strongback model.                  %
+% Script for generating shear and moment diagrams.                             %
 %                                                                              %
 %                                                                              %
 %                                                                              %
@@ -8,10 +8,12 @@
 %                                                                              %
 %##############################################################################%
 
-clear all; close all; clc; %#ok<CLALL>
+% clear all; close all; clc; %#ok<CLALL>
+
+function moment_shear_diagram(nStories, EI)
 
 %################################# Definition #################################%
-nStories = 6;
+% nStories = 6;
 bldg = Strongback(nStories);
 bldg.seismicDesignCategory = 'Dmax';
 
@@ -63,6 +65,10 @@ springGivens.enforceMinimumStiffness = false;
 springGivens.enforceMinimumStrength = false;
 springGivens.minimumRatio = 0.7;
 
+ELF = equivalentLateralForceAnalysis(bldg);
+spring = bldg.springDesign(ELF, springGivens);
+bldg.storySpringDefinition = {spring.definition}';
+
 targetTrussDeformation = 0.002;  % Ratio of story height
 bldg.storyTrussDefinition = cell(nStories,1);
 trussModulus = (cumsum(bldg.storyMass,'reverse')*bldg.g)/targetTrussDeformation;
@@ -70,13 +76,15 @@ for i = 1:nStories
     bldg.storyTrussDefinition{i} = sprintf('uniaxialMaterial Elastic %i %g',i+10,trussModulus(i));
 end
 
+% EI = 1e6;
 bldg.strongbackDefinition.Area    = 1;
-bldg.strongbackDefinition.Modulus = 1e3;
-bldg.strongbackDefinition.Inertia = 1e3;
+bldg.strongbackDefinition.Modulus = sqrt(EI);
+bldg.strongbackDefinition.Inertia = sqrt(EI);
 
 %----------------------------------- Options ----------------------------------%
 bldg.echoOpenSeesOutput = false;
 bldg.deleteFilesAfterAnalysis = false;
+% analysisType = 'responseHistory';
 
 paths = fieldnames(pathOf);
 for i = 1:length(paths)
@@ -87,80 +95,19 @@ bldg.pathOf.tclfunctions = '/home/petertalley/Github/OpenSees-ShearBuildings/lib
 bldg.optionsPushover.maxDrift = sum(bldg.storyHeight);
 bldg.optionsPushover.test.print = 0;
 
-bldg.optionsIDA.nMotions = 2;
+bldg.optionsIDA.dt_min = 0;
+bldg.optionsIDA.nMotions = 14;
 
 gm_mat = '../ground_motions.mat';
+gmIndex_start = 1;
+gmIndex_end = min(bldg.optionsIDA.nMotions + gmIndex_start - 1, 44);
 
-%################################# Run tests! #################################%
-R_max = 8;
-R_min = 1;
-R_tolerance = 0.25;
+%################################ Run analysis ################################%
 
-EI = zeros(7,1);
-R = ones(7,1)*R_max;
-for i = 1:length(EI)
-    bldg.strongbackDefinition.Modulus = sqrt(EI(i));
-    bldg.strongbackDefinition.Inertia = sqrt(EI(i));
+load(gm_mat)
 
-    R_failure = R_max;
-    R_success = R_min;
+for analysisType = {'responseHistory', 'pushover'}
+    momentShearEnvelopes(bldg, analysisType{:}, ground_motions, [gmIndex_start, gmIndex_end]);
+end
 
-    complete = false;
-    failure = false;
-    maxed_out = false;
-
-    while ~complete
-        fprintf('Evaluating R = %g\n', bldg(1).respModCoeff)
-        for archIndex = 1:nArchetypes
-            ELF = equivalentLateralForceAnalysis(bldg(archIndex));
-            spring = bldg(archIndex).springDesign(ELF,springGivens);
-            bldg(archIndex).storySpringDefinition = {spring.definition}';
-
-            F = bldg(archIndex).pushoverForceDistribution();
-            pushover = bldg(archIndex).pushover(F,'TargetPostPeakRatio',0.79);
-            pushover = bldg(archIndex).processPushover(pushover,ELF);
-
-            IDA(archIndex) = incrementalDynamicAnalysis(bldg(archIndex), gm_mat, pushover.periodBasedDuctility);
-        end
-        fprintf('ACMR = %g; ACMR20 = %g\n', IDA.ACMR, IDA.ACMR20)
-
-        if IDA.ACMR > IDA.ACMR20
-            success = true;
-        else
-            success = false;
-        end
-
-        if success
-            if bldg.respModCoeff == R_max
-                complete = true;
-                maxed_out = true;
-            elseif (bldg.respModCoeff - R_success) < R_tolerance
-                complete = true;
-            else
-                R_success = bldg.respModCoeff;
-                bldg.respModCoeff = R_success + (R_failure - R_success)/2;
-            end
-        else
-            if (bldg.respModCoeff - R_min) < R_tolerance
-                complete = true;
-                failure = true;
-            else
-                R_failure = bldg.respModCoeff;
-                bldg.respModCoeff = R_success + (R_failure - R_success)/2;
-            end
-        end
-    end
-
-    if failure
-        fprintf('\nAnalysis failed; R too small: %g\n', bldg.respModCoeff)
-    else
-        fprintf('\nAnalysis complete; R = %g\n', bldg.respModCoeff)
-    end
-
-    if maxed_out
-        fprintf('Maxed out R; ACMR only goes up from here\n')
-        break
-    end
-
-    R(i) = bldg.respModCoeff;
 end
