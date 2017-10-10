@@ -36,8 +36,8 @@ results.SF = SF;
 % Filenames
 filenames.input              = obj.scratchFile(sprintf('%s_responseHistory_input_%s_%i.tcl'      ,class(obj),gmID,indexNum));
 filenames.output_timeSeries  = obj.scratchFile(sprintf('%s_responseHistory_timeSeries_%s_%i.out' ,class(obj),gmID,indexNum));
-filenames.output_def_x       = obj.scratchFile(sprintf('%s_responseHistory_disp_x_%s_%i.out'     ,class(obj),gmID,indexNum));
-filenames.output_def_y       = obj.scratchFile(sprintf('%s_responseHistory_disp_y_%s_%i.out'     ,class(obj),gmID,indexNum));
+filenames.output_disp_truss  = obj.scratchFile(sprintf('%s_responseHistory_disp_truss_%s_%i.out' ,class(obj),gmID,indexNum));
+filenames.output_disp_sback  = obj.scratchFile(sprintf('%s_responseHistory_disp_sback_%s_%i.out' ,class(obj),gmID,indexNum));
 filenames.output_vel_x       = obj.scratchFile(sprintf('%s_responseHistory_vel_x_%s_%i.out'      ,class(obj),gmID,indexNum));
 filenames.output_vel_y       = obj.scratchFile(sprintf('%s_responseHistory_vel_y_%s_%i.out'      ,class(obj),gmID,indexNum));
 filenames.output_force_story = obj.scratchFile(sprintf('%s_responseHistory_force_s_%s_%i.out'    ,class(obj),gmID,indexNum));
@@ -59,8 +59,8 @@ fprintf(fid,'pattern UniformExcitation 1 1 -accel 1\n\n');
 
 fprintf(fid,'#---------------------------------- Recorders ---------------------------------#\n');
 fprintf(fid,'recorder Node -file {%s} -time -timeSeries 1 -node 10 -dof 1 accel\n',filenames.output_timeSeries);
-fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 1 disp \n',filenames.output_def_x,obj.nStories+10);
-fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 2 disp \n',filenames.output_def_y,obj.nStories+10);
+fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 1 2 disp \n',filenames.output_disp_truss,obj.nStories+10);
+fprintf(fid,'recorder Node -file {%s} -nodeRange 21 %i -dof 2 disp \n',filenames.output_disp_sback,obj.nStories+20);
 fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 1 vel \n',filenames.output_vel_x,obj.nStories+10);
 fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 2 vel \n',filenames.output_vel_y,obj.nStories+10);
 fprintf(fid,'recorder Node -file {%s} -node 10 20 -dof 1 2 3 reaction \n',filenames.output_reaction);
@@ -139,8 +139,12 @@ temp = dlmread(filenames.output_timeSeries);
 results.time = temp(:,1);
 results.groundMotion = temp(:,2);
 
-results.displacement_x = dlmread(filenames.output_def_x);
-results.displacement_y = dlmread(filenames.output_def_y);
+temp = dlmread(filenames.output_disp_truss);
+results.displacement_x = temp(:,1:2:end);
+results.displacement_y = temp(:,2:2:end);
+
+results.strongbackDispY = dlmread(filenames.output_disp_sback);
+
 results.velocity_x     = dlmread(filenames.output_vel_x);
 results.velocity_y     = dlmread(filenames.output_vel_y);
 
