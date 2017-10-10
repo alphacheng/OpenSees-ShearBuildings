@@ -17,7 +17,16 @@ properties
     storyHeight                     % Height of each story
     storySpringDefinition           % OpenSees uniaxial material definition for the story springs
     storyTrussDefinition            % OpenSees uniaxial material definition for the trusses
-    strongbackDefinition            % Struct containing `Area`, `Modulus`, and `Inertia` for the strongback
+
+    % Struct containing `Area`, `Modulus`, and `Inertia` for the strongback
+    strongbackDefinition = struct('Area', 1, ...
+                                  'Modulus', 29000, ...
+                                  'Inertia', 10000, ...
+                                  'Rigidity', 11500, ...
+                                  'ShearCoeff', 0, ...
+                                  'IntType', 'Lobatto', ...
+                                  'nIntPoints', 4 ...
+    );
 
     fundamentalPeriod               % Fundamental period of the structure
 
@@ -237,11 +246,16 @@ function constructBuilding(obj,fid)
     fprintf(fid,'\n');
     fprintf(fid,'# Strongback\n');
     fprintf(fid,'geomTransf Corotational 1\n');
-    sbArea    = obj.strongbackDefinition.Area;
-    sbModulus = obj.strongbackDefinition.Modulus;
-    sbInertia = obj.strongbackDefinition.Inertia;
+    A = obj.strongbackDefinition.Area;
+    E = obj.strongbackDefinition.Modulus;
+    I = obj.strongbackDefinition.Inertia;
+    G = obj.strongbackDefinition.Rigidity;
+    k = obj.strongbackDefinition.ShearCoeff;
+    T = obj.strongbackDefinition.IntType;
+    n = obj.strongbackDefinition.nIntPoints;
+    fprintf(fid, 'section Elastic 1 %g %g %g %g %g\n',E,A,I,G,k);
     for i = 1:obj.nStories
-        fprintf(fid,'element elasticBeamColumn %i %i %i %g %g %g 1\n',20+i,20+(i-1),20+i,sbArea,sbModulus,sbInertia);
+        fprintf(fid,'element forceBeamColumn %i %i %i 1 "%s 1 %i"\n',20+i,20+(i-1),20+i,T,n);
     end
     fprintf(fid,'\n');
 

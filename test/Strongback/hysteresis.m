@@ -66,9 +66,15 @@ end
 
 % --- Strongback ---
 EI = 1e8;
-bldg.strongbackDefinition.Area = 1;
+GA = 1e6;
+nu = 0.3;
 bldg.strongbackDefinition.Modulus = sqrt(EI);
 bldg.strongbackDefinition.Inertia = sqrt(EI);
+bldg.strongbackDefinition.Rigidity = sqrt(EI)/(2*(1+nu));
+bldg.strongbackDefinition.Area = GA/bldg.strongbackDefinition.Rigidity;
+bldg.strongbackDefinition.ShearCoeff = 1;
+bldg.strongbackDefinition.IntType = 'Lobatto';
+bldg.strongbackDefinition.nIntPoints = 4;
 
 %----------------------------------- Options ----------------------------------%
 bldg.echoOpenSeesOutput = false;
@@ -84,7 +90,7 @@ bldg.pathOf.tclfunctions = '/home/petertalley/Github/OpenSees-ShearBuildings/lib
 bldg.optionsPushover.maxDrift = sum(bldg.storyHeight);
 bldg.optionsPushover.test.print = 0;
 
-bldg.optionsIDA.nMotions = 2;
+bldg.optionsIDA.nMotions = 1;
 
 gm_mat = '../ground_motions.mat';
 load(gm_mat);
