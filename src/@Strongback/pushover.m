@@ -46,15 +46,16 @@ switch lower(type)
 end
 
 % Filenames
-filenames.input              = obj.scratchFile(sprintf('%s_pushover_input.tcl'      ,class(obj)));
-filenames.output_timeSeries  = obj.scratchFile(sprintf('%s_pushover_timeSeries.out' ,class(obj)));
-filenames.output_def_x       = obj.scratchFile(sprintf('%s_pushover_disp_x.out'     ,class(obj)));
-filenames.output_def_y       = obj.scratchFile(sprintf('%s_pushover_disp_y.out'     ,class(obj)));
-filenames.output_force_story = obj.scratchFile(sprintf('%s_pushover_force_s.out'    ,class(obj)));
-filenames.output_force_truss = obj.scratchFile(sprintf('%s_pushover_force_t.out'    ,class(obj)));
-filenames.output_force_sback = obj.scratchFile(sprintf('%s_pushover_force_b.out'    ,class(obj)));
+filenames.input              = obj.scratchFile(sprintf('%s_pushover_input.tcl'     , class(obj)));
+filenames.output_timeSeries  = obj.scratchFile(sprintf('%s_pushover_timeSeries.out', class(obj)));
+filenames.output_disp_truss  = obj.scratchFile(sprintf('%s_pushover_disp_truss.out', class(obj)));
+filenames.output_disp_sback  = obj.scratchFile(sprintf('%s_pushover_disp_sback.out', class(obj)));
+filenames.output_force_story = obj.scratchFile(sprintf('%s_pushover_force_story.out', class(obj)));
+filenames.output_force_truss = obj.scratchFile(sprintf('%s_pushover_force_truss.out', class(obj)));
+filenames.output_force_sback = obj.scratchFile(sprintf('%s_pushover_force_sback.out', class(obj)));
+filenames.output_rxn_sback   = obj.scratchFile(sprintf('%s_pushover_rxn_sback.out',   class(obj)));
 
-% Create .tcl file
+%############################## Create .tcl file ##############################%
 fid = fopen(filenames.input,'w');
 
 obj.constructBuilding(fid)
@@ -74,11 +75,12 @@ fprintf(fid,'}\n\n');
 
 fprintf(fid,'#---------------------------------- Recorders ---------------------------------#\n');
 fprintf(fid,'recorder Node -file {%s} -time -timeSeries 1 -node 10 -dof 1 accel\n',filenames.output_timeSeries);
-fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 1 disp \n',filenames.output_def_x,obj.nStories+10);
-fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 2 disp \n',filenames.output_def_y,obj.nStories+10);
+fprintf(fid,'recorder Node -file {%s} -nodeRange 11 %i -dof 1 2 disp \n', filenames.output_disp_truss, obj.nStories+10);
+fprintf(fid,'recorder Node -file {%s} -nodeRange 21 %i -dof 2 disp \n', filenames.output_disp_sback, obj.nStories+20);
 fprintf(fid,'recorder Element -file {%s} -eleRange 1 %i -dof 1 force \n',filenames.output_force_story,obj.nStories);
 fprintf(fid,'recorder Element -file {%s} -eleRange 11 %i -dof 1 2 force \n',filenames.output_force_truss,obj.nStories+10);
 fprintf(fid,'recorder Element -file {%s} -eleRange 21 %i localForce \n',filenames.output_force_sback,obj.nStories+20);
+fprintf(fid,'recorder Node -file {%s} -node 20 -dof 1 2 reaction \n', filenames.output_rxn_sback);
 fprintf(fid,'record\n\n');
 
 fprintf(fid,'#---------------------------------- Analysis ----------------------------------#\n');
@@ -166,8 +168,12 @@ end
 %-------------------------------- Read Results --------------------------------%
 temp = dlmread(filenames.output_timeSeries);
 time = temp(:,1);
-results.displacement_x = dlmread(filenames.output_def_x);
-results.displacement_y = dlmread(filenames.output_def_y);
+
+temp = dlmread(filenames.output_disp_truss);
+results.displacement_x = temp(:,1:2:end);
+results.displacement_y = temp(:,2:2:end);
+
+results.strongbackDispY = dlmread(filenames.output_disp_sback);
 
 temp = dlmread(filenames.output_force_story);
 results.storyShear = -temp;
@@ -183,6 +189,10 @@ results.strongbackShear           = temp(:,2:6:end);
 results.strongbackShear(:,end+1)  = temp(:,end-1);
 results.strongbackMoment          = temp(:,3:6:end);
 results.strongbackMoment(:,end+1) = temp(:,end);
+
+temp = dlmread(filenames.output_rxn_sback);
+results.strongbackBaseRxnX = temp(:,1);
+results.strongbackBaseRxnY = temp(:,2);
 
 %------------------------------ Computed Results ------------------------------%
 storyDrift = results.displacement_x;
